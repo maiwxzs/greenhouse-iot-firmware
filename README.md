@@ -101,7 +101,7 @@ pio device monitor     # 9600 baudios
 
 Con el Arduino IDE: copia `firmware/src/main.cpp` como `Invernadero/Invernadero.ino`, junto con los tres archivos de `firmware/include/`, e instala las librerías **OneWire**, **DallasTemperature** y **LiquidCrystal I2C**.
 
-La lógica de decisión (`Logica.h`) no depende de Arduino y está cubierta por pruebas unitarias. GitHub Actions corre esas pruebas, compila el firmware con y sin pantalla, informa el uso de memoria y construye la aplicación en cada cambio.
+La lógica de decisión (`Logica.h`) no depende de Arduino y está cubierta por pruebas unitarias. En el Arduino Uno el firmware usa 1342 de 2048 bytes de RAM (65.5 %) y 25 508 de 32 256 bytes de flash (79.1 %); sin pantalla, 52.4 % y 65.1 %. GitHub Actions corre esas pruebas, compila el firmware con y sin pantalla, informa el uso de memoria y construye la aplicación en cada cambio.
 
 ## Simulación en Tinkercad
 

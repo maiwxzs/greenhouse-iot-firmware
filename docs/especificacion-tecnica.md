@@ -51,7 +51,7 @@ Un sistema embebido de bajo costo que:
 |---|---|---|
 | RNF-01 | Funcionar solo con el USB del Arduino | Una carga grande a la vez (sección 7) |
 | RNF-02 | Respetar el ciclo de trabajo de la bomba (máx. 20 min/h) | Pausa mínima de 1 min y tope de 15 min/h |
-| RNF-03 | Caber en el Arduino Uno | Textos en flash, sin STL; uso de memoria medido en cada compilación |
+| RNF-03 | Caber en el Arduino Uno | RAM 65.5 % y flash 79.1 %, medidos en cada compilación; textos en flash y sin STL |
 | RNF-04 | No bloquearse | Sin `delay()` largos; cada vuelta de `loop()` dura milisegundos |
 | RNF-05 | Fallar de forma segura | Sección 8 |
 | RNF-06 | Código mantenible y verificable | POO según el UML, lógica separada en `Logica.h`, 25 pruebas unitarias |
@@ -166,7 +166,7 @@ El peor caso dura lo que un pulso de riego (5 s) y queda por debajo de los 500 m
 - **Sondas caseras:** se oxidan con el tiempo, aunque solo se energizan durante la medición. Los clavos se limpian o se cambian cada pocas semanas.
 - **Reloj:** sin RTC puede desviarse algunos minutos por día; la aplicación lo corrige al conectarse.
 - **Alimentación:** con solo USB, la bomba y el ventilador no funcionan a la vez.
-- **Memoria flash:** el firmware ocupa la mayor parte de los 32 KB. Para funciones grandes, se puede compilar sin LCD (`USAR_LCD 0`) o migrar a un Arduino Mega.
+- **Memoria:** quedan unos 700 bytes de RAM y 6.7 KB de flash. Para funciones grandes se puede compilar sin LCD (`USAR_LCD 0`, que libera 4.5 KB de flash) o migrar a un Arduino Mega.
 
 ## 11. Mejoras posibles
 
