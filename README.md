@@ -1,215 +1,160 @@
 # Smart Greenhouse IoT
 
-[![Firmware](https://github.com/maiwxzs/greenhouse-iot-firmware/actions/workflows/firmware.yml/badge.svg)](https://github.com/maiwxzs/greenhouse-iot-firmware/actions/workflows/firmware.yml)
+[![Firmware y aplicación](https://github.com/maiwxzs/greenhouse-iot-firmware/actions/workflows/firmware.yml/badge.svg)](https://github.com/maiwxzs/greenhouse-iot-firmware/actions/workflows/firmware.yml)
 [![Código: MIT](https://img.shields.io/badge/c%C3%B3digo-MIT-2E7A4C.svg)](LICENSE)
 [![Documentación: CC BY 4.0](https://img.shields.io/badge/docs-CC%20BY%204.0-2370AE.svg)](LICENSE-docs.md)
 
-Invernadero automatizado con Arduino Uno. Mide temperatura, humedad del aire, humedad del suelo y el nivel del tanque. Con esas lecturas decide solo cuándo ventilar, regar o encender la luz. Avisa en el sitio con pantalla, LEDs y zumbador, y en el computador con un dashboard web por USB.
+Invernadero a escala controlado por un Arduino Uno. El sistema mide la temperatura del aire, la humedad del aire, la humedad del suelo y el nivel del tanque. Con esas lecturas ventila y riega por sí solo. Informa en el sitio con una pantalla LCD, dos LEDs y un zumbador, y en el computador con una aplicación de monitoreo conectada por USB.
 
-![Dashboard web en modo demostración](docs/img/dashboard.png)
+![Aplicación de monitoreo en modo demostración](docs/img/aplicacion.png)
 
-## Qué hace
+## Funciones
 
-- **Ventila** cuando hace calor o el aire está muy húmedo.
-- **Riega en pulsos de 5 s** cuando la tierra o el aire están secos. No riega si el tanque está vacío o la tierra está encharcada, y respeta el límite de uso de la bomba.
-- **Enciende la luz de cultivo** según un horario.
-- **Avisa** con LED rojo (humedad baja), LED azul (humedad alta), pantalla LCD y alarma sonora.
-- **Se configura sin reprogramar:** umbrales, horario y calibración por comandos o desde el dashboard. Todo queda guardado en la EEPROM.
-- **Funciona solo con el USB del Arduino:** reparte la energía para no superar los 500 mA.
-- **Falla de forma segura:** si se desconecta un sensor, el sistema lo detecta y actúa con precaución.
+- **Ventilación** cuando la temperatura supera el límite configurado o el aire está húmedo. Se apaga con histéresis para que el ventilador no arranque y pare a cada momento.
+- **Riego por pulsos** de 5 s cuando la tierra está seca, con 1 min de pausa entre pulsos y un máximo de 15 min de bomba por hora. No riega si el tanque está vacío o la tierra está encharcada.
+- **Alarma** con zumbador por tanque vacío, temperatura crítica o falla del sensor de temperatura. Se silencia con el pulsador o desde la aplicación.
+- **Configuración sin reprogramar:** los umbrales y la calibración se cambian con comandos por USB y quedan guardados en la EEPROM.
+- **Alimentación solo por el USB del Arduino:** el firmware nunca enciende la bomba y el ventilador a la vez, para no superar los 500 mA del puerto.
+- **Falla segura:** si el sensor de temperatura deja de responder, el ventilador queda encendido y suena la alarma.
+- **Historial en el computador:** la aplicación guarda las lecturas, los eventos y estadísticas diarias en el disco, sin usar la memoria del Arduino.
 
 ## Arquitectura
 
-```mermaid
-flowchart LR
-    subgraph S["Sensores"]
-        DS["DS18B20<br/>temperatura"]
-        HR["HR202<br/>humedad del aire"]
-        SU["Sonda de suelo<br/>dos clavos"]
-        TQ["Sonda del tanque"]
-    end
-    A["Arduino Uno R3<br/>firmware C++ POO"]
-    subgraph R["Actuadores por relé"]
-        BO["Bomba y aspersor"]
-        VE["Ventilador"]
-        LU["Luz de cultivo"]
-    end
-    subgraph L["En el sitio"]
-        LCD["LCD, LEDs<br/>y zumbador"]
-        BT["Pulsador"]
-    end
-    D["Dashboard web<br/>en Chrome"]
-    S --> A --> R
-    A --> LCD
-    BT --> A
-    A <-->|"USB: JSON y comandos"| D
-```
+![Arquitectura del sistema](docs/diagramas/arquitectura-sistema.png)
 
-Más diagramas (bloques del firmware, flujo de control, UML, estados, secuencia) en [`docs/diagramas/`](docs/diagramas/), en Mermaid, SVG, PNG y draw.io.
+| Diagrama | Contenido |
+|---|---|
+| [Arquitectura del sistema](docs/diagramas/arquitectura-sistema.png) | Sensores, actuadores e interfaces con sus pines |
+| [Capas del firmware](docs/diagramas/firmware-capas.png) | Archivos y clases, de `main.cpp` a la lógica pura |
+| [Ciclo de control](docs/diagramas/ciclo-control.png) | Una vuelta de `loop()` y las decisiones de cada muestra |
+| [Estados con histéresis](docs/diagramas/estados-control.png) | Temperatura, humedad del suelo y humedad del aire |
+| [Diagrama de clases](docs/diagramas/uml-clases.png) | UML del firmware |
+| [Secuencia aplicación ↔ Arduino](docs/diagramas/secuencia-app-arduino.png) | Conexión, sincronización de la hora, telemetría y comandos |
+| [Arquitectura de la aplicación](docs/diagramas/aplicacion-arquitectura.png) | Componentes React, datos e IndexedDB |
+| [Mensajes del protocolo](docs/diagramas/protocolo-mensajes.png) | Campos de `tel`, `cfg`, respuestas y comandos |
+
+Cada diagrama está en SVG, PNG y draw.io en [`docs/diagramas/`](docs/diagramas/).
 
 ## Hardware
 
 | Componente | Función | Pin |
 |---|---|---|
 | Arduino Uno R3 (clon CH340G) | Controlador | — |
-| DS18B20 sumergible + resistencia de 4.7 kΩ | Temperatura | D2 |
-| Módulo HR202 (LM393) | Humedad del aire | A0 (AO), D3 (DO) |
-| Sonda casera de dos clavos | Humedad del suelo | A1 |
-| Sonda casera de dos cables | Nivel del tanque | A2 |
-| Módulo relé 5 V + mini bomba sumergible | Aspersor | D7 |
-| Módulo relé 5 V + mini ventilador 5 V | Ventilación | D8 |
-| Módulo relé 5 V + lámpara LED USB | Luz de cultivo | D9 |
-| LED rojo y LED azul + 220 Ω | Humedad baja y alta | D5, D6 |
-| Zumbador | Alarma | D10 |
-| Pulsador | Riego manual y silencio | D4 |
+| Sonda DS18B20 sumergible + resistencia de 4.7 kΩ | Temperatura del aire | D2 |
+| Módulo de humedad HR202 con relé (contacto NO/COM) | Humedad del aire alta o normal | D3 |
+| Pulsador de 12 mm | Riego manual y silencio de la alarma | D4 |
+| LED rojo y LED azul de 5 mm + 220 Ω | Suelo seco y aire húmedo | D5, D6 |
+| Módulo relé 1 + mini bomba sumergible 3–6 V | Riego | D7 |
+| Módulo relé 2 + ventilador 5 V de 40 × 40 mm | Ventilación | D8 |
+| Zumbador piezoeléctrico activo 3–24 V | Alarma | D10 |
+| Sonda de suelo de dos clavos | Humedad del suelo | A1 |
+| Sonda de nivel de dos cables | Agua en el tanque | A2 |
 | LCD 16×2 con módulo I2C | Pantalla | A4 (SDA), A5 (SCL) |
 
-- Esquema, cableado de los relés, sondas caseras y alimentación: [`hardware/circuits/conexiones.md`](hardware/circuits/conexiones.md)
-- Lista de materiales (comprado, por comprar y hecho en casa): [`hardware/bom/BOM.md`](hardware/bom/BOM.md)
-
-## Cómo empezar
-
-### 1. Armar el circuito
-
-Sigue [`hardware/circuits/conexiones.md`](hardware/circuits/conexiones.md). Si alguna parte opcional no está conectada (LCD, zumbador, luz, sondas), desactívala en [`firmware/include/Config.h`](firmware/include/Config.h).
-
-### 2. Cargar el firmware
-
-**Con PlatformIO (VS Code):**
-
-```bash
-cd firmware
-pio run -t upload        # compila y carga al Arduino (las librerías se descargan solas)
-pio device monitor       # monitor serie a 9600 baudios
-```
-
-**Con el Arduino IDE:**
-
-1. Crea una carpeta llamada `Invernadero`.
-2. Copia ahí `firmware/src/main.cpp` y cámbiale el nombre a `Invernadero.ino`.
-3. Copia en la misma carpeta los tres archivos de `firmware/include/` (`Config.h`, `Logica.h` y `GreenhouseCore.hpp`).
-4. En *Herramientas → Administrar bibliotecas*, instala **OneWire** (Paul Stoffregen), **DallasTemperature** (Miles Burton) y **LiquidCrystal I2C** (Frank de Brabander).
-5. Elige la placa **Arduino Uno** y carga el programa. Si el puerto no aparece, instala el driver **CH340**.
-
-### 3. Calibrar y probar
-
-Sigue el [manual de usuario](docs/manual-usuario.md): calibración de los sensores en 5 pasos y una tabla para probar cada parte.
-
-### 4. Abrir el dashboard
-
-Abre [`dashboard/index.html`](dashboard/index.html) en **Chrome o Edge**, pulsa **Conectar Arduino** y elige el puerto. Sin el Arduino, **Probar sin Arduino** muestra datos simulados.
-
-> **Opcional: dashboard en línea.** En GitHub, entra a *Settings → Pages* y elige *Deploy from a branch → main → / (root)*. El dashboard quedará en `https://maiwxzs.github.io/greenhouse-iot-firmware/dashboard/` y se podrá abrir desde cualquier computador con Chrome, sin descargar el repositorio.
+- Cableado, alimentación y consumo: [`hardware/circuits/conexiones.md`](hardware/circuits/conexiones.md)
+- Lista de materiales con especificaciones y medidas: [`hardware/bom/BOM.md`](hardware/bom/BOM.md)
 
 ## Lógica de control
 
 | Situación | Respuesta |
 |---|---|
 | Temperatura sobre 30 °C | Ventilador hasta que baje de 28 °C |
-| Temperatura de 35 °C o más | Además, alarma |
-| Suelo bajo 30 % | Riego en pulsos (5 s, pausa de 1 min, máx. 15 min/h) y LED rojo |
-| Aire bajo 40 % con el suelo bien | Nebulización en pulsos y LED rojo |
-| Aire sobre 80 % | Ventilador y LED azul |
-| Suelo sobre 85 % | No riega |
-| Tanque vacío | Bomba bloqueada, LED rojo parpadea y alarma |
-| Sensor de temperatura desconectado | Ventilador por seguridad, LEDs alternados y alarma |
-| Horario de luz (6:00 a 18:00) | Luz encendida |
+| Temperatura de 35 °C o más | Además, alarma sonora |
+| Contacto del módulo HR202 cerrado (aire húmedo) | Ventilador y LED azul |
+| Suelo bajo 30 % | Riego por pulsos y LED rojo |
+| Suelo sobre 85 % | Riego bloqueado |
+| Tanque vacío | Bomba bloqueada, LED rojo intermitente y alarma |
+| DS18B20 sin respuesta | Ventilador por seguridad, LEDs alternados y alarma |
 
-Todos los umbrales se cambian con comandos (`TEMP 28`, `HUMMIN 45`, `LUZ 7 19`…). Ver el [protocolo serie](docs/protocolo-serie.md).
+Los valores son los de fábrica y se cambian con comandos como `TEMP 28` o `SUELOMIN 35` ([protocolo serie](docs/protocolo-serie.md)). El umbral de humedad del aire se fija con el potenciómetro del propio módulo HR202.
 
-Con alimentación solo por USB, nunca funcionan dos cargas a la vez. La prioridad es bomba, luego ventilador, luego luz.
+## Aplicación de monitoreo
 
-## Simulación en Tinkercad
+La aplicación está hecha en React y se ejecuta en Chrome o Edge, que pueden hablar con el puerto USB mediante Web Serial. Se instala como aplicación de escritorio y abre sin conexión a internet.
 
-[`tinkercad/invernadero_tinkercad.ino`](tinkercad/invernadero_tinkercad.ino) es el mismo sistema adaptado a las piezas de Tinkercad Circuits (TMP36, potenciómetro, relés con transistor, motores DC). Guía completa con cableado y pruebas: [`docs/tinkercad.md`](docs/tinkercad.md).
+- **Escena animada** del invernadero: el ventilador gira con inercia, el agua corre por la manguera, la planta se marchita si el suelo está seco, el cielo sigue la hora del invernadero y el zumbador vibra cuando suena la alarma.
+- **En vivo:** gráficas de los últimos 30 minutos y franjas de cuándo funcionó cada actuador.
+- **Historial:** lecturas de los últimos 2 días y resúmenes por minuto de 180 días, guardados en IndexedDB. Estadísticas diarias de temperatura, riegos, agua usada, ventilación y alarmas, y exportación a CSV.
+- **Eventos:** cambios de estado, riegos, alarmas y comandos, con filtros.
+- **Ajustes, calibración y consola** de comandos.
+- **Modo demostración:** un simulador con el mismo protocolo que el firmware, a velocidad real o ×20.
+
+Para abrirla, ejecuta `app/dist/index.html` en Chrome o Edge, o publícala con GitHub Pages (*Settings → Pages → Deploy from a branch → main / root*); queda en `https://maiwxzs.github.io/greenhouse-iot-firmware/app/dist/`. Detalles técnicos en [`app/README.md`](app/README.md).
 
 ## Maqueta
 
-![Maqueta del invernadero](hardware/maqueta/render-perspectiva.png)
+![Maqueta del invernadero](hardware/maqueta/render-general.png)
 
-La maqueta mide 46 × 30 cm de base. Tiene el invernadero de balso y acetato, una caja aparte para la electrónica y el tanque de agua. Incluye:
-- **Modelos 3D:** [`hardware/3d-models/`](hardware/3d-models/), en STL. GitHub los muestra en 3D y Tinkercad puede importarlos.
-- **Planos de corte con medidas:** [`hardware/maqueta/planos-de-corte.svg`](hardware/maqueta/planos-de-corte.svg).
-- **Guía de montaje paso a paso:** [`docs/montaje-maqueta.md`](docs/montaje-maqueta.md).
+Base de MDF de 47 × 31 cm. Invernadero de 30 × 30 cm con estructura de balso de 10 × 10 mm, paredes y techo de acrílico de 2 mm y 31 cm de altura en la cumbrera. A su lado, una caja de MDF de 15 × 20 × 7.5 cm con la electrónica, y detrás de ella el tanque de 1 L con la bomba. Materiales, piezas, uniones y recorrido de cada cable en [`docs/maqueta.md`](docs/maqueta.md).
 
-Las medidas se cambian en [`tools/generar_maqueta.py`](tools/generar_maqueta.py).
+- Modelos 3D en STL y OBJ con colores: [`hardware/3d-models/`](hardware/3d-models/)
+- Renders, planos de corte y distribución: [`hardware/maqueta/`](hardware/maqueta/)
 
-## Pruebas y calidad
+## Firmware
 
-- **Pruebas unitarias:** 25 pruebas de la lógica (histéresis, riego, energía, reloj, comandos, validación de ajustes). Corren en el computador con `pio test -e native`.
-- **Integración continua:** en cada cambio, GitHub Actions corre las pruebas, compila el firmware para el Uno (con y sin LCD) y reporta la memoria.
-- **Memoria del Arduino Uno:** RAM 1448 de 2048 bytes (70.7 %); flash 29 054 de 32 256 bytes (90.1 %).
+```bash
+cd firmware
+pio test -e native     # 25 pruebas de la lógica, en el computador
+pio run -e uno -t upload
+pio device monitor     # 9600 baudios
+```
+
+Con el Arduino IDE: copia `firmware/src/main.cpp` como `Invernadero/Invernadero.ino`, junto con los tres archivos de `firmware/include/`, e instala las librerías **OneWire**, **DallasTemperature** y **LiquidCrystal I2C**.
+
+La lógica de decisión (`Logica.h`) no depende de Arduino y está cubierta por pruebas unitarias. GitHub Actions corre esas pruebas, compila el firmware con y sin pantalla, informa el uso de memoria y construye la aplicación en cada cambio.
+
+## Simulación en Tinkercad
+
+[`tinkercad/invernadero_tinkercad.ino`](tinkercad/invernadero_tinkercad.ino) es el mismo control adaptado a las piezas disponibles en Tinkercad Circuits (TMP36, interruptor deslizante en lugar del contacto del HR202, relés con transistor y motores DC). Piezas, cableado y diferencias con el equipo real: [`docs/tinkercad.md`](docs/tinkercad.md).
 
 ## Estructura del repositorio
 
 ```
 greenhouse-iot-firmware/
-├── firmware/                     Código del Arduino (proyecto PlatformIO)
+├── firmware/                    Código del Arduino (PlatformIO)
 │   ├── include/
-│   │   ├── Config.h              Pines, partes instaladas, valores de fábrica
-│   │   ├── Logica.h              Decisiones sin hardware (probadas)
-│   │   └── GreenhouseCore.hpp    Clases de sensores, actuadores y control
-│   ├── src/main.cpp              setup() y loop()
-│   ├── test/test_logica/         Pruebas unitarias
-│   └── platformio.ini
-├── dashboard/index.html          Dashboard web (Web Serial)
-├── tinkercad/                    Versión para simular en Tinkercad
+│   │   ├── Config.h             Pines, partes instaladas y valores de fábrica
+│   │   ├── Logica.h             Decisiones sin hardware (probadas)
+│   │   └── GreenhouseCore.hpp   Sensores, actuadores, pantalla y controlador
+│   ├── src/main.cpp             setup() y loop()
+│   └── test/test_logica/        Pruebas unitarias
+├── app/                         Aplicación de monitoreo (React)
+│   ├── src/                     Componentes, hooks y lógica de datos
+│   └── dist/                    Aplicación construida, lista para abrir
+├── tinkercad/                   Versión para Tinkercad Circuits
 ├── hardware/
-│   ├── circuits/                 Esquema y guía de conexiones
-│   ├── bom/                      Lista de materiales
-│   ├── 3d-models/                Maqueta en STL
-│   └── maqueta/                  Planos de corte y renders
+│   ├── circuits/                Esquema y documentación de conexiones
+│   ├── bom/                     Lista de materiales
+│   ├── 3d-models/               Maqueta en STL y OBJ
+│   └── maqueta/                 Renders, planos de corte y distribución
 ├── docs/
 │   ├── especificacion-tecnica.md
 │   ├── manual-usuario.md
 │   ├── protocolo-serie.md
+│   ├── maqueta.md
 │   ├── tinkercad.md
-│   ├── montaje-maqueta.md
-│   ├── diagramas/                Mermaid → SVG, PNG y draw.io
-│   ├── img/
-│   └── historial/                Diseño inicial (PDF, UML y diagramas)
-├── tools/                        Generadores de esquema, maqueta y diagramas
-├── .github/workflows/            Compilación y pruebas automáticas
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── LICENSE                       MIT (código)
-└── LICENSE-docs.md               CC BY 4.0 (documentación y diseños)
+│   ├── diagramas/               SVG, PNG y draw.io
+│   └── img/
+├── tools/                       Generadores de diagramas, esquema y maqueta
+└── .github/workflows/           Integración continua
 ```
-
-## Del UML al código
-
-El código sigue el diagrama de clases del diseño inicial ([`docs/historial/uml-inicial.jpg`](docs/historial/uml-inicial.jpg)), ampliado para el hardware definitivo. El diagrama actualizado está en [`docs/diagramas/uml-clases.png`](docs/diagramas/uml-clases.png).
-
-| Clase en el UML inicial | Clase en el código | Cambio |
-|---|---|---|
-| `Sensor` (abstracta) | `Sensor` | `obtenerLectura(ahora)` guarda una `LecturaDato` |
-| `SensorDHT11` | `SensorTemperatura` | DS18B20, lectura no bloqueante |
-| `SensorHumedad` (YL-69) | `SensorHumedad` | HR202, humedad del aire |
-| — | `SondaResistiva` → `SensorHumedadSuelo`, `SensorNivelAgua` | Sondas caseras |
-| `Actuador` (abstracta) | `Actuador` | Se añaden `inicializar()` y `actualizar()` |
-| `ServomotorEscotilla` | `ActuadorRele` → `BombaAgua`, `Ventilador`, `LuzCultivo` | Hardware definitivo |
-| `IndicadorLED` | `IndicadorLED` | Se añade `parpadear()` |
-| — | `Zumbador`, `BotonPulsador`, `PantallaLCD` | Interfaz en el sitio |
-| `ReglaControl` | `ReglaControl` | Suelo, tanque, temperatura crítica e histéresis |
-| `LecturaDato` | `LecturaDato` | Campo `valida` (antes `valor >= 0`, que fallaba bajo cero) |
-| `ControladorArduino` | `ControladorArduino` | Comandos, energía, alarma, telemetría |
-| `Invernadero` | `Invernadero` | Igual |
-| — | `CicloTrabajoBomba`, `RelojSoftware`, `Ajustes`, `AlmacenAjustes` | Lógica y persistencia |
 
 ## Documentación
 
-| Documento | Para qué |
+| Documento | Contenido |
 |---|---|
-| [Especificación técnica](docs/especificacion-tecnica.md) | Requisitos, arquitectura, lógica, energía, fallas, pruebas, limitaciones |
-| [Manual de usuario](docs/manual-usuario.md) | Uso diario, LEDs y pantalla, dashboard, calibración, solución de problemas |
-| [Protocolo serie](docs/protocolo-serie.md) | Comandos y formato de los datos |
-| [Conexiones](hardware/circuits/conexiones.md) | Cableado completo y alimentación |
-| [Lista de materiales](hardware/bom/BOM.md) | Electrónica y maqueta |
-| [Tinkercad](docs/tinkercad.md) | Simulación del circuito |
-| [Montaje de la maqueta](docs/montaje-maqueta.md) | Construcción paso a paso |
-| [Diagramas](docs/diagramas/) | Cómo verlos y editarlos |
-| [Cómo trabajar en el proyecto](CONTRIBUTING.md) | Flujo con Git, pruebas y convenciones |
-| [Cambios](CHANGELOG.md) | Historial de versiones |
+| [Especificación técnica](docs/especificacion-tecnica.md) | Requisitos, arquitectura, control, energía, fallas, pruebas y limitaciones |
+| [Manual de usuario](docs/manual-usuario.md) | Operación, indicadores, aplicación, calibración y solución de problemas |
+| [Protocolo serie](docs/protocolo-serie.md) | Comandos y mensajes JSON |
+| [Conexiones](hardware/circuits/conexiones.md) | Pines, cableado de cada componente y consumo |
+| [Lista de materiales](hardware/bom/BOM.md) | Electrónica y maqueta, con especificaciones |
+| [Maqueta](docs/maqueta.md) | Materiales, dimensiones, construcción y cableado |
+| [Tinkercad](docs/tinkercad.md) | Circuito simulado y diferencias con el real |
+| [Aplicación](app/README.md) | Arquitectura, almacenamiento y construcción |
+| [Diagramas](docs/diagramas/README.md) | Índice y edición |
+| [Herramientas](tools/README.md) | Cómo se generan los archivos de diseño |
+| [Contribuir](CONTRIBUTING.md) | Flujo de trabajo y convenciones |
+| [Cambios](CHANGELOG.md) | Versiones |
 
 ## Equipo
 
@@ -225,4 +170,4 @@ En GitHub: **maiwxzs**, **pautthh**, **lopezand2701**, **jdavidortiz2004-tech**.
 
 ## Licencia
 
-El código (`firmware/`, `dashboard/`, `tinkercad/`, `tools/`) está bajo la licencia [MIT](LICENSE). La documentación, los diagramas y los diseños de hardware y de la maqueta, bajo [CC BY 4.0](LICENSE-docs.md).
+El código (`firmware/`, `app/`, `tinkercad/`, `tools/`) se publica bajo la licencia [MIT](LICENSE). La documentación, los diagramas y los diseños de hardware y de la maqueta, bajo [CC BY 4.0](LICENSE-docs.md).

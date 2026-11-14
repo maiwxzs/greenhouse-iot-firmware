@@ -12,12 +12,9 @@ static Ajustes ajustesDePrueba() {
     Ajustes a;
     memset(&a, 0, sizeof(a));
     a.tempMax = 30; a.tempHisteresis = 2; a.tempCritica = 35;
-    a.humAireMin = 40; a.humAireMax = 80;
     a.humSueloMin = 30; a.humSueloMax = 85; a.humHisteresis = 5;
-    a.adcAireSeco = 900; a.adcAireHumedo = 350;
     a.adcSueloSeco = 1000; a.adcSueloHumedo = 250;
     a.adcUmbralAgua = 700;
-    a.luzHoraInicio = 6; a.luzHoraFin = 18; a.modoLuz = LUZ_AUTO;
     sellarAjustes(a);
     return a;
 }
@@ -51,15 +48,15 @@ void test_ajustes_validos_y_checksum(void) {
 }
 
 void test_ajustes_rechaza_valores_absurdos(void) {
-    Ajustes a = cfg; a.humAireMin = 120; sellarAjustes(a);
+    Ajustes a = cfg; a.humSueloMin = 120; sellarAjustes(a);
     TEST_ASSERT_FALSE(ajustesValidos(a));
-    a = cfg; a.humAireMax = 30; sellarAjustes(a);               // máximo menor que mínimo
+    a = cfg; a.humSueloMax = 20; sellarAjustes(a);              // máximo menor que mínimo
     TEST_ASSERT_FALSE(ajustesValidos(a));
     a = cfg; a.tempCritica = 20; sellarAjustes(a);              // crítica menor que máxima
     TEST_ASSERT_FALSE(ajustesValidos(a));
-    a = cfg; a.adcAireHumedo = a.adcAireSeco; sellarAjustes(a); // calibración imposible
+    a = cfg; a.adcSueloHumedo = a.adcSueloSeco; sellarAjustes(a); // calibración imposible
     TEST_ASSERT_FALSE(ajustesValidos(a));
-    a = cfg; a.luzHoraFin = 24; sellarAjustes(a);
+    a = cfg; a.adcUmbralAgua = 1023; sellarAjustes(a);            // umbral del tanque imposible
     TEST_ASSERT_FALSE(ajustesValidos(a));
 }
 
@@ -83,7 +80,7 @@ void test_histeresis_humedad(void) {
 
 void test_histeresis_temperatura(void) {
     ReglaControl r(cfg);
-    r.evaluarHumedad(L(60));
+    r.evaluarHumedad(L(0));
     r.evaluarTemperatura(L(31)); TEST_ASSERT_TRUE(r.requiereVentilacion());
     r.evaluarTemperatura(L(29)); TEST_ASSERT_TRUE(r.requiereVentilacion());   // histéresis
     r.evaluarTemperatura(L(27.9f)); TEST_ASSERT_FALSE(r.requiereVentilacion());
@@ -93,7 +90,7 @@ void test_histeresis_temperatura(void) {
 
 void test_falla_temperatura_ventila_y_alarma(void) {
     ReglaControl r(cfg);
-    r.evaluarHumedad(L(60));
+    r.evaluarHumedad(L(0));
     r.evaluarTemperatura(L(-127, false));
     TEST_ASSERT_TRUE(r.requiereVentilacion());
     TEST_ASSERT_TRUE(r.hayFallaSensor());
@@ -103,7 +100,7 @@ void test_falla_temperatura_ventila_y_alarma(void) {
 
 void test_temperatura_critica(void) {
     ReglaControl r(cfg);
-    r.evaluarHumedad(L(60));
+    r.evaluarHumedad(L(0));
     r.evaluarTemperatura(L(36));
     TEST_ASSERT_TRUE(r.hayAlarma());
     TEST_ASSERT_EQUAL(ESTADO_TEMPERATURA_CRITICA, r.obtenerEstado());
@@ -112,46 +109,39 @@ void test_temperatura_critica(void) {
 void test_riego_por_suelo_seco(void) {
     ReglaControl r(cfg);
     r.evaluarTemperatura(L(24));
-    r.evaluarHumedad(L(60));
+    r.evaluarHumedad(L(0));
     r.evaluarHumedadSuelo(L(20), true);
     r.evaluarNivelAgua(true, true);
     TEST_ASSERT_TRUE(r.requiereRiego());
     TEST_ASSERT_EQUAL(ESTADO_SUELO_SECO, r.obtenerEstado());
 }
 
-void test_nebuliza_por_aire_seco_si_suelo_normal(void) {
+void test_no_riega_con_suelo_normal_o_encharcado(void) {
     ReglaControl r(cfg);
     r.evaluarTemperatura(L(24));
-    r.evaluarHumedad(L(30));
+    r.evaluarHumedad(L(0));
+    r.evaluarNivelAgua(true, true);
     r.evaluarHumedadSuelo(L(50), true);
-    r.evaluarNivelAgua(true, true);
-    TEST_ASSERT_TRUE(r.requiereRiego());
-    TEST_ASSERT_EQUAL(ESTADO_HUMEDAD_BAJA, r.obtenerEstado());
-}
-
-void test_no_riega_si_suelo_encharcado(void) {
-    ReglaControl r(cfg);
-    r.evaluarTemperatura(L(24));
-    r.evaluarHumedad(L(30));
-    r.evaluarHumedadSuelo(L(95), true);
-    r.evaluarNivelAgua(true, true);
     TEST_ASSERT_FALSE(r.requiereRiego());
+    r.evaluarHumedadSuelo(L(95), true);
+    TEST_ASSERT_FALSE(r.requiereRiego());
+    TEST_ASSERT_EQUAL(ESTADO_SUELO_ENCHARCADO, r.obtenerEstado());
 }
 
-void test_sonda_suelo_invalida_decide_por_aire(void) {
+void test_sonda_suelo_invalida_no_riega(void) {
     ReglaControl r(cfg);
     r.evaluarTemperatura(L(24));
-    r.evaluarHumedad(L(30));
+    r.evaluarHumedad(L(0));
     r.evaluarHumedadSuelo(L(0, false), true);
     r.evaluarNivelAgua(true, true);
     TEST_ASSERT_EQUAL(NIVEL_DESCONOCIDO, r.obtenerEstadoSuelo());
-    TEST_ASSERT_TRUE(r.requiereRiego());
+    TEST_ASSERT_FALSE(r.requiereRiego());
 }
 
 void test_sin_agua_bloquea_riego(void) {
     ReglaControl r(cfg);
     r.evaluarTemperatura(L(24));
-    r.evaluarHumedad(L(30));
+    r.evaluarHumedad(L(0));
     r.evaluarHumedadSuelo(L(10), true);
     r.evaluarNivelAgua(false, true);
     TEST_ASSERT_FALSE(r.requiereRiego());
@@ -163,24 +153,32 @@ void test_sin_agua_bloquea_riego(void) {
 void test_sonda_de_agua_no_usada_no_bloquea(void) {
     ReglaControl r(cfg);
     r.evaluarTemperatura(L(24));
-    r.evaluarHumedad(L(30));
-    r.evaluarHumedadSuelo(L(0), false);
+    r.evaluarHumedad(L(0));
+    r.evaluarHumedadSuelo(L(10), true);
     r.evaluarNivelAgua(false, false);
     TEST_ASSERT_TRUE(r.requiereRiego());
-    TEST_ASSERT_EQUAL(NIVEL_NO_USADO, r.obtenerEstadoSuelo());
 }
 
 void test_humedad_alta_ventila(void) {
     ReglaControl r(cfg);
     r.evaluarTemperatura(L(24));
-    r.evaluarHumedad(L(90));
+    r.evaluarHumedad(L(1));
     TEST_ASSERT_TRUE(r.requiereVentilacion());
+    TEST_ASSERT_EQUAL(NIVEL_ALTO, r.obtenerEstadoAire());
     TEST_ASSERT_EQUAL(ESTADO_HUMEDAD_ALTA, r.obtenerEstado());
+    r.evaluarHumedad(L(0));
+    TEST_ASSERT_FALSE(r.requiereVentilacion());
+}
+
+void test_sin_lectura_de_aire_es_sin_datos(void) {
+    ReglaControl r(cfg);
+    r.evaluarTemperatura(L(24));
+    TEST_ASSERT_EQUAL(ESTADO_SIN_DATOS, r.obtenerEstado());
 }
 
 void test_cambio_de_ajustes_se_aplica_en_vivo(void) {
     ReglaControl r(cfg);
-    r.evaluarHumedad(L(60));
+    r.evaluarHumedad(L(0));
     r.evaluarTemperatura(L(29));
     TEST_ASSERT_FALSE(r.requiereVentilacion());
     cfg.tempMax = 28;                 // la regla guarda una referencia a los ajustes
@@ -226,29 +224,28 @@ void test_bomba_desborde_millis(void) {
 // ------------------------------ Energía -------------------------------
 
 void test_reparto_energia_solo_arduino(void) {
-    CargasPermitidas c = repartirEnergia(true, true, true, true);
-    TEST_ASSERT_TRUE(c.bomba); TEST_ASSERT_FALSE(c.ventilador); TEST_ASSERT_FALSE(c.luz);
-    c = repartirEnergia(false, true, true, true);
-    TEST_ASSERT_TRUE(c.ventilador); TEST_ASSERT_FALSE(c.luz);
-    c = repartirEnergia(false, false, true, true);
-    TEST_ASSERT_TRUE(c.luz);
-    c = repartirEnergia(true, true, true, false);         // con fuente externa: todo a la vez
-    TEST_ASSERT_TRUE(c.bomba && c.ventilador && c.luz);
+    CargasPermitidas c = repartirEnergia(true, true, true);
+    TEST_ASSERT_TRUE(c.bomba); TEST_ASSERT_FALSE(c.ventilador);   // la bomba tiene prioridad
+    c = repartirEnergia(false, true, true);
+    TEST_ASSERT_TRUE(c.ventilador); TEST_ASSERT_FALSE(c.bomba);
+    c = repartirEnergia(false, false, true);
+    TEST_ASSERT_FALSE(c.bomba || c.ventilador);
+    c = repartirEnergia(true, true, false);               // con fuente externa: las dos a la vez
+    TEST_ASSERT_TRUE(c.bomba && c.ventilador);
 }
 
 // ------------------------------- Reloj --------------------------------
 
-void test_reloj_y_horario_de_luz(void) {
+void test_reloj_avanza_y_se_sincroniza(void) {
     RelojSoftware r;
-    r.ajustar(17, 59, 50, 0);
+    r.ajustar(8, 0, 0, 0, false);                          // hora supuesta al arrancar
+    TEST_ASSERT_FALSE(r.estaSincronizado());
+    r.ajustar(17, 59, 50, 0);                              // comando HORA
+    TEST_ASSERT_TRUE(r.estaSincronizado());
     TEST_ASSERT_EQUAL(17, r.hora(0));
-    TEST_ASSERT_TRUE(luzEnHorario(r.segundosDelDia(0), 6, 18));
+    TEST_ASSERT_EQUAL(59, r.minuto(0));
     TEST_ASSERT_EQUAL(18, r.hora(10000));
-    TEST_ASSERT_FALSE(luzEnHorario(r.segundosDelDia(10000), 6, 18));
-    TEST_ASSERT_TRUE(luzEnHorario(23UL * 3600UL, 20, 6));  // cruza medianoche
-    TEST_ASSERT_TRUE(luzEnHorario(3UL * 3600UL, 20, 6));
-    TEST_ASSERT_FALSE(luzEnHorario(12UL * 3600UL, 20, 6));
-    TEST_ASSERT_FALSE(luzEnHorario(12UL * 3600UL, 8, 8));  // inicio == fin: nunca
+    TEST_ASSERT_EQUAL(0, r.segundo(10000));
 }
 
 void test_reloj_pasa_la_medianoche(void) {
@@ -282,15 +279,15 @@ void test_parsear_comando_hora(void) {
 }
 
 void test_parsear_comando_texto_y_vacio(void) {
-    char linea[] = "  cal   aireseco ";
+    char linea[] = "  cal   sueloseco ";
     Comando c;
     TEST_ASSERT_TRUE(parsearComando(linea, c));
     TEST_ASSERT_EQUAL_STRING("CAL", c.nombre);
-    TEST_ASSERT_EQUAL_STRING("AIRESECO", c.texto);
+    TEST_ASSERT_EQUAL_STRING("SUELOSECO", c.texto);
     TEST_ASSERT_EQUAL(0, c.cantidadNumeros);
     char vacia[] = "   ";
     TEST_ASSERT_FALSE(parsearComando(vacia, c));
-    char texto[] = "HUMMIN abc";
+    char texto[] = "SUELOMIN abc";
     TEST_ASSERT_TRUE(parsearComando(texto, c));
     TEST_ASSERT_EQUAL(0, c.cantidadNumeros);              // "abc" no es número
 }
@@ -306,18 +303,18 @@ int main(int, char**) {
     RUN_TEST(test_falla_temperatura_ventila_y_alarma);
     RUN_TEST(test_temperatura_critica);
     RUN_TEST(test_riego_por_suelo_seco);
-    RUN_TEST(test_nebuliza_por_aire_seco_si_suelo_normal);
-    RUN_TEST(test_no_riega_si_suelo_encharcado);
-    RUN_TEST(test_sonda_suelo_invalida_decide_por_aire);
+    RUN_TEST(test_no_riega_con_suelo_normal_o_encharcado);
+    RUN_TEST(test_sonda_suelo_invalida_no_riega);
     RUN_TEST(test_sin_agua_bloquea_riego);
     RUN_TEST(test_sonda_de_agua_no_usada_no_bloquea);
     RUN_TEST(test_humedad_alta_ventila);
+    RUN_TEST(test_sin_lectura_de_aire_es_sin_datos);
     RUN_TEST(test_cambio_de_ajustes_se_aplica_en_vivo);
     RUN_TEST(test_bomba_pulso_y_pausa);
     RUN_TEST(test_bomba_cupo_por_hora);
     RUN_TEST(test_bomba_desborde_millis);
     RUN_TEST(test_reparto_energia_solo_arduino);
-    RUN_TEST(test_reloj_y_horario_de_luz);
+    RUN_TEST(test_reloj_avanza_y_se_sincroniza);
     RUN_TEST(test_reloj_pasa_la_medianoche);
     RUN_TEST(test_parsear_comando_numero);
     RUN_TEST(test_parsear_comando_hora);

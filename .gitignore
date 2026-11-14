@@ -23,5 +23,9 @@ node_modules/
 Thumbs.db
 desktop.ini
 
-# Datos exportados del dashboard
+# Datos exportados desde la aplicación
 invernadero_*.csv
+
+# Dependencias de la aplicación
+app/node_modules
+app/package-lock.json

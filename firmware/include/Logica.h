@@ -66,32 +66,23 @@ inline float adcAPorcentaje(int adc, int adcSeco, int adcHumedo) {
 // ---------------------------------------------------------------------
 //  Ajustes que se pueden cambiar por comandos y se guardan en la EEPROM
 // ---------------------------------------------------------------------
-enum ModoLuz : uint8_t { LUZ_AUTO = 0, LUZ_SIEMPRE_ON = 1, LUZ_SIEMPRE_OFF = 2 };
-
 struct Ajustes {
     uint16_t magia;          // identifica que la EEPROM tiene ajustes válidos
     uint8_t  version;
     float tempMax;           // °C: por encima se ventila
     float tempHisteresis;    // °C
     float tempCritica;       // °C: por encima suena la alarma
-    float humAireMin;        // %: por debajo, humedad del aire BAJA
-    float humAireMax;        // %: por encima, humedad del aire ALTA
     float humSueloMin;       // %: por debajo, suelo SECO
     float humSueloMax;       // %: por encima, suelo ENCHARCADO
     float humHisteresis;     // %
-    int16_t adcAireSeco;     // calibración HR202
-    int16_t adcAireHumedo;
     int16_t adcSueloSeco;    // calibración sonda de suelo
     int16_t adcSueloHumedo;
     int16_t adcUmbralAgua;   // sonda del tanque: por debajo = hay agua
-    uint8_t luzHoraInicio;   // 0-23
-    uint8_t luzHoraFin;      // 0-23 (puede ser menor que inicio: pasa la medianoche)
-    uint8_t modoLuz;         // ModoLuz
     uint8_t checksum;
 };
 
 const uint16_t AJUSTES_MAGIA   = 0x1A5E;
-const uint8_t  AJUSTES_VERSION = 2;
+const uint8_t  AJUSTES_VERSION = 4;
 
 inline uint8_t calcularChecksum(const Ajustes& a) {
     const uint8_t* p = reinterpret_cast<const uint8_t*>(&a);
@@ -117,14 +108,11 @@ inline bool ajustesValidos(const Ajustes& a) {
     if (a.checksum != calcularChecksum(a)) return false;
     if (!enRango(a.tempMax, 0, 60) || !enRango(a.tempHisteresis, 0.1f, 10)) return false;
     if (!enRango(a.tempCritica, a.tempMax, 80)) return false;
-    if (!enRango(a.humAireMin, 0, 100) || !enRango(a.humAireMax, a.humAireMin, 100)) return false;
     if (!enRango(a.humSueloMin, 0, 100) || !enRango(a.humSueloMax, a.humSueloMin, 100)) return false;
     if (!enRango(a.humHisteresis, 0, 30)) return false;
-    if (a.adcAireSeco == a.adcAireHumedo || a.adcSueloSeco == a.adcSueloHumedo) return false;
-    if (a.adcAireSeco < 0 || a.adcAireSeco > 1023 || a.adcAireHumedo < 0 || a.adcAireHumedo > 1023) return false;
+    if (a.adcSueloSeco == a.adcSueloHumedo) return false;
     if (a.adcSueloSeco < 0 || a.adcSueloSeco > 1023 || a.adcSueloHumedo < 0 || a.adcSueloHumedo > 1023) return false;
     if (a.adcUmbralAgua < 1 || a.adcUmbralAgua > 1022) return false;
-    if (a.luzHoraInicio > 23 || a.luzHoraFin > 23 || a.modoLuz > LUZ_SIEMPRE_OFF) return false;
     return true;
 }
 
@@ -166,7 +154,6 @@ enum EstadoSistema : uint8_t {
     ESTADO_NORMAL = 0,
     ESTADO_HUMEDAD_ALTA,
     ESTADO_SUELO_ENCHARCADO,
-    ESTADO_HUMEDAD_BAJA,
     ESTADO_SUELO_SECO,
     ESTADO_TEMPERATURA_ALTA,
     ESTADO_TEMPERATURA_CRITICA,
@@ -179,7 +166,6 @@ inline const char* nombreEstado(EstadoSistema e) {
     switch (e) {
         case ESTADO_HUMEDAD_ALTA:             return "HUMEDAD_ALTA";
         case ESTADO_SUELO_ENCHARCADO:         return "SUELO_ENCHARCADO";
-        case ESTADO_HUMEDAD_BAJA:             return "HUMEDAD_BAJA";
         case ESTADO_SUELO_SECO:               return "SUELO_SECO";
         case ESTADO_TEMPERATURA_ALTA:         return "TEMPERATURA_ALTA";
         case ESTADO_TEMPERATURA_CRITICA:      return "TEMPERATURA_CRITICA";
@@ -222,10 +208,11 @@ public:
         critico = t.valor >= cfg.tempCritica;
     }
 
+    // Humedad del aire: el módulo HR202 entrega un contacto (1 = supera el umbral
+    // ajustado con su potenciómetro, 0 = no lo supera). No hay porcentaje.
     void evaluarHumedad(const LecturaDato& h) {
         if (!h.esValida()) { estadoAire = NIVEL_DESCONOCIDO; return; }
-        estadoAire = clasificarConHisteresis(estadoAire, h.valor,
-                                             cfg.humAireMin, cfg.humAireMax, cfg.humHisteresis);
+        estadoAire = (h.valor > 0.5f) ? NIVEL_ALTO : NIVEL_NORMAL;
     }
 
     // usada = false si la sonda de suelo no está instalada.
@@ -249,19 +236,16 @@ public:
         return calor || fallaTemperatura || estadoAire == NIVEL_ALTO;
     }
 
-    // Regar si el suelo está seco, o nebulizar si el aire está seco
-    // (salvo que el suelo ya esté encharcado). Nunca sin agua en el tanque.
+    // Riego automático solo cuando la sonda confirma suelo seco y hay agua.
+    // Sin lectura válida del suelo no se riega de forma automática.
     bool requiereRiego() const {
-        if (tanqueVacio) return false;
-        if (estadoSuelo == NIVEL_BAJO) return true;
-        if (estadoSuelo == NIVEL_ALTO) return false;
-        return estadoAire == NIVEL_BAJO;
+        return !tanqueVacio && estadoSuelo == NIVEL_BAJO;
     }
 
     bool riegoBloqueadoPorTanque() const { return tanqueVacio; }
 
     bool hayFallaSensor() const {
-        return fallaTemperatura || estadoAire == NIVEL_DESCONOCIDO;
+        return fallaTemperatura;
     }
 
     // Situaciones que merecen sonido
@@ -281,7 +265,6 @@ public:
         if (critico)                       return ESTADO_TEMPERATURA_CRITICA;
         if (calor)                         return ESTADO_TEMPERATURA_ALTA;
         if (estadoSuelo == NIVEL_BAJO)     return ESTADO_SUELO_SECO;
-        if (estadoAire == NIVEL_BAJO)      return ESTADO_HUMEDAD_BAJA;
         if (estadoSuelo == NIVEL_ALTO)     return ESTADO_SUELO_ENCHARCADO;
         if (estadoAire == NIVEL_ALTO)      return ESTADO_HUMEDAD_ALTA;
         return ESTADO_NORMAL;
@@ -360,33 +343,25 @@ private:
 // ---------------------------------------------------------------------
 //  Reparto de energía: con todo alimentado desde el USB del Arduino
 //  solo una carga grande puede estar encendida. Prioridad:
-//  bomba > ventilador > luz.
+//  bomba > ventilador.
 // ---------------------------------------------------------------------
 struct CargasPermitidas {
     bool bomba;
     bool ventilador;
-    bool luz;
 };
 
-inline CargasPermitidas repartirEnergia(bool quiereBomba, bool quiereVentilador,
-                                        bool quiereLuz, bool soloUnaCarga) {
+inline CargasPermitidas repartirEnergia(bool quiereBomba, bool quiereVentilador, bool soloUnaCarga) {
     CargasPermitidas c;
-    if (!soloUnaCarga) {
-        c.bomba = quiereBomba;
-        c.ventilador = quiereVentilador;
-        c.luz = quiereLuz;
-        return c;
-    }
     c.bomba = quiereBomba;
-    c.ventilador = quiereVentilador && !c.bomba;
-    c.luz = quiereLuz && !c.bomba && !c.ventilador;
+    c.ventilador = quiereVentilador && !(soloUnaCarga && c.bomba);
     return c;
 }
 
 // ---------------------------------------------------------------------
 //  RelojSoftware: hora del día a partir de millis() (sin módulo RTC).
-//  Se pone en hora con el comando HORA o automáticamente desde el
-//  dashboard. Precisión típica: unos minutos por día.
+//  Se pone en hora con el comando HORA o automáticamente desde la
+//  aplicación. Se muestra en la LCD y en la telemetría.
+//  Precisión típica: unos minutos por día.
 // ---------------------------------------------------------------------
 const unsigned long SEGUNDOS_POR_DIA = 86400UL;
 
@@ -425,22 +400,12 @@ private:
     bool sincronizado;
 };
 
-// ¿Debe estar encendida la luz a esta hora? Admite horarios que cruzan la
-// medianoche (por ejemplo de 20 a 6). Si inicio == fin, la luz no se enciende.
-inline bool luzEnHorario(unsigned long segundosDia, uint8_t horaInicio, uint8_t horaFin) {
-    const unsigned long ini = (unsigned long)horaInicio * 3600UL;
-    const unsigned long fin = (unsigned long)horaFin * 3600UL;
-    if (ini == fin) return false;
-    if (ini < fin) return segundosDia >= ini && segundosDia < fin;
-    return segundosDia >= ini || segundosDia < fin;
-}
-
 // ---------------------------------------------------------------------
 //  Comandos por el puerto serie: "NOMBRE arg1 arg2 arg3"
 // ---------------------------------------------------------------------
 struct Comando {
     char nombre[12];
-    char texto[12];      // primer argumento como texto (para CAL AIRESECO, LUZ AUTO...)
+    char texto[12];      // primer argumento como texto (para CAL SUELOSECO...)
     float numeros[3];    // argumentos numéricos
     uint8_t cantidadNumeros;
     uint8_t cantidadArgumentos;

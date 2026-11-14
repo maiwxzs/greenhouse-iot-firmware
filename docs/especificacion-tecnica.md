@@ -1,172 +1,176 @@
 # Especificación técnica
 
-**Proyecto:** Smart Greenhouse IoT, invernadero automatizado con Arduino
-**Versión del firmware:** 2.0.0
-**Plataforma:** Arduino Uno R3 (ATmega328P, 5 V, 2 KB de RAM, 32 KB de flash)
+| | |
+|---|---|
+| **Proyecto** | Smart Greenhouse IoT, invernadero automatizado a escala |
+| **Firmware** | 3.0.0 |
+| **Aplicación** | 3.0.0 |
+| **Controlador** | Arduino Uno R3 (ATmega328P a 16 MHz, 5 V, 2 KB de RAM, 32 KB de flash, 1 KB de EEPROM) |
+| **Alimentación** | USB del Arduino, 5 V y 500 mA como máximo |
 
 ## 1. Problema
 
-Los cultivos pequeños en invernadero pierden producción por cambios de temperatura y humedad que nadie detecta a tiempo. Sin un operador presente, la ventilación y el riego llegan tarde, cuando la planta ya sufrió estrés térmico o hídrico, y tampoco hay una señal visible en el sitio que diga si las condiciones son buenas o malas.
+En un cultivo pequeño bajo cubierta, la temperatura y la humedad cambian a lo largo del día más rápido de lo que una persona alcanza a vigilar. Cuando la ventilación o el riego llegan tarde, la planta ya sufrió estrés térmico o hídrico. Además, sin una indicación en el sitio, nadie sabe a simple vista si las condiciones son buenas.
 
 ## 2. Objetivo
 
-Construir un sistema embebido que:
+Un sistema embebido de bajo costo que:
 
-1. Mida de forma continua la temperatura, la humedad del aire, la humedad del suelo y el nivel de agua del tanque.
-2. Decida por sí solo cuándo ventilar, regar o encender la luz, con reglas configurables.
-3. Avise en el sitio (pantalla, LEDs y zumbador) y en el computador (dashboard web).
-4. Registre los datos para analizarlos después (CSV).
+1. Mide de forma continua la temperatura del aire, la humedad del aire, la humedad del suelo y el nivel del tanque.
+2. Decide por sí solo cuándo ventilar y cuándo regar, con reglas configurables.
+3. Informa en el sitio con pantalla, LEDs y zumbador, y en el computador con una aplicación de monitoreo.
+4. Conserva un historial de lecturas y eventos para analizar el comportamiento del cultivo.
 
 ## 3. Alcance
 
-**Incluye:** firmware del Arduino, dashboard web por USB, maqueta física, documentación técnica y de usuario, simulación en Tinkercad y pruebas automáticas.
+**Incluye:** firmware del Arduino, aplicación de monitoreo por USB, maqueta física, simulación en Tinkercad, pruebas automáticas y documentación técnica y de usuario.
 
-**No incluye:** conexión WiFi o a internet, servidor ni base de datos. El sistema funciona completo sin computador; el dashboard es opcional.
+**No incluye:** conexión inalámbrica, servidor ni acceso remoto. El invernadero funciona completo sin computador; la aplicación agrega visualización, historial y configuración.
 
 ## 4. Requisitos
 
 ### Funcionales
 
-| ID | Requisito | Cómo se cumple |
+| ID | Requisito | Implementación |
 |---|---|---|
-| RF-01 | Medir temperatura cada 2 s con precisión de ±0.5 °C | DS18B20 a 12 bits, lectura no bloqueante |
-| RF-02 | Medir humedad del aire | Módulo HR202, salida analógica calibrada en dos puntos |
-| RF-03 | Medir humedad del suelo sin comprar un sensor | Sonda de dos clavos con el pull-up interno del Arduino |
+| RF-01 | Medir la temperatura cada 2 s con ±0.5 °C | DS18B20 a 12 bits, conversión no bloqueante |
+| RF-02 | Detectar humedad del aire alta | Contacto NO del módulo HR202, con antirrebote de 3 lecturas |
+| RF-03 | Medir la humedad del suelo sin un sensor comercial | Sonda de dos clavos con el pull-up interno del Arduino |
 | RF-04 | Detectar el tanque vacío | Sonda de dos cables en el tanque |
-| RF-05 | Ventilar por calor o por humedad alta | Relé 2 y ventilador, con histéresis |
-| RF-06 | Regar por suelo seco o nebulizar por aire seco | Relé 1 y bomba, en pulsos de 5 s |
+| RF-05 | Ventilar por calor o por aire húmedo | Relé 2 y ventilador, con histéresis de temperatura |
+| RF-06 | Regar cuando el suelo está seco | Relé 1 y bomba, en pulsos de 5 s |
 | RF-07 | No regar con el tanque vacío ni con el suelo encharcado | `ReglaControl::requiereRiego()` |
-| RF-08 | Encender la luz de cultivo según un horario | Relé 3, reloj por software y comando `LUZ` |
-| RF-09 | Indicar el estado en el sitio | LCD 16×2, LED rojo, LED azul y zumbador |
-| RF-10 | Riego manual y silencio de la alarma | Pulsador: corto = riego, largo = silencio |
-| RF-11 | Cambiar umbrales sin reprogramar | Comandos serie; ajustes guardados en EEPROM |
-| RF-12 | Ver y exportar datos en el computador | Dashboard web (Web Serial) y descarga CSV |
+| RF-08 | Indicar el estado en el sitio | LCD 16×2, LED rojo, LED azul y zumbador |
+| RF-09 | Riego manual y silencio de la alarma | Pulsador: corto riega o silencia, largo silencia |
+| RF-10 | Cambiar los umbrales sin reprogramar | Comandos serie; ajustes en EEPROM con validación y checksum |
+| RF-11 | Ver, guardar y exportar datos en el computador | Aplicación React con Web Serial, IndexedDB y exportación CSV |
 
 ### No funcionales
 
-| ID | Requisito | Cómo se cumple |
+| ID | Requisito | Implementación |
 |---|---|---|
-| RNF-01 | Funcionar solo con el USB del Arduino (máx. 500 mA) | Una carga grande a la vez (sección 7) |
-| RNF-02 | Respetar el ciclo de trabajo de la bomba (máx. 20 min/h) | Pausa mínima de 1 min y cupo de 15 min/h |
-| RNF-03 | Caber en el Arduino Uno | 1448 B de RAM (70.7 %) y 29 KB de flash (90.1 %), medidos en CI |
-| RNF-04 | Responder siempre, sin bloquearse | Sin `delay()` largos; el loop se repite cada pocos milisegundos |
+| RNF-01 | Funcionar solo con el USB del Arduino | Una carga grande a la vez (sección 7) |
+| RNF-02 | Respetar el ciclo de trabajo de la bomba (máx. 20 min/h) | Pausa mínima de 1 min y tope de 15 min/h |
+| RNF-03 | Caber en el Arduino Uno | Textos en flash, sin STL; uso de memoria medido en cada compilación |
+| RNF-04 | No bloquearse | Sin `delay()` largos; cada vuelta de `loop()` dura milisegundos |
 | RNF-05 | Fallar de forma segura | Sección 8 |
-| RNF-06 | Código mantenible y probado | POO según el UML, lógica separada en `Logica.h`, 25 pruebas unitarias |
+| RNF-06 | Código mantenible y verificable | POO según el UML, lógica separada en `Logica.h`, 25 pruebas unitarias |
+| RNF-07 | No cargar la RAM del Arduino con historial | El historial, las estadísticas y los textos de ayuda viven en la aplicación |
 
 ## 5. Arquitectura
 
-```mermaid
-flowchart LR
-    S["Sensores<br/>DS18B20, HR202,<br/>sonda de suelo, sonda del tanque"] --> A["Arduino Uno R3<br/>firmware C++ POO"]
-    A --> R["Relés<br/>bomba, ventilador, luz"]
-    A --> I["Interfaz local<br/>LCD, LEDs, zumbador"]
-    B["Pulsador"] --> A
-    A <-->|"USB serie<br/>JSON y comandos"| D["Dashboard web<br/>en Chrome"]
-    A <--> E[("EEPROM<br/>ajustes")]
-```
+![Arquitectura del sistema](diagramas/arquitectura-sistema.png)
 
-Diagramas detallados (fuente Mermaid, SVG, PNG y draw.io) en [`docs/diagramas/`](diagramas/):
-arquitectura del sistema, bloques del firmware, flujo de control, diagrama de clases UML, estados de humedad y secuencia del dashboard.
+### Firmware
 
-### Organización del firmware
+![Capas del firmware](diagramas/firmware-capas.png)
 
 | Archivo | Contenido | Depende de Arduino |
 |---|---|---|
-| `firmware/include/Config.h` | Pines, partes instaladas, valores de fábrica, tiempos | Sí |
-| `firmware/include/Logica.h` | `LecturaDato`, `Ajustes`, `ReglaControl`, `CicloTrabajoBomba`, `repartirEnergia`, `RelojSoftware`, `parsearComando` | **No** (se prueba en el computador) |
+| `firmware/include/Config.h` | Pines, partes instaladas, valores de fábrica y tiempos | Sí |
+| `firmware/include/Logica.h` | `LecturaDato`, `Ajustes`, `ReglaControl`, `CicloTrabajoBomba`, `repartirEnergia`, `RelojSoftware`, `parsearComando` | **No** |
 | `firmware/include/GreenhouseCore.hpp` | Sensores, actuadores, pantalla, pulsador, EEPROM, controlador e invernadero | Sí |
-| `firmware/src/main.cpp` | Crea los objetos y llama a `setup()` / `loop()` | Sí |
+| `firmware/src/main.cpp` | Crea los objetos y los conecta | Sí |
 | `firmware/test/test_logica/` | Pruebas unitarias de `Logica.h` | No |
 
-Separar la lógica del hardware permite probar todas las decisiones (histéresis, riego, energía, reloj, comandos) sin el Arduino conectado.
+Todas las decisiones (histéresis, riego, reparto de energía, reloj, interpretación de comandos y validación de ajustes) están en `Logica.h`, sin acceso a pines. Por eso se prueban en el computador con `pio test -e native`. El diagrama de clases completo está en [`diagramas/uml-clases.png`](diagramas/uml-clases.png).
 
-## 6. Lógica de control
+### Aplicación
 
-Cada 2 segundos el controlador lee los sensores y `ReglaControl` decide:
+![Arquitectura de la aplicación](diagramas/aplicacion-arquitectura.png)
+
+La aplicación recibe cada línea JSON del Arduino, la interpreta, detecta eventos y la acumula por minuto. Escribe en IndexedDB en lotes de 15 lecturas para no tocar el disco cada 2 s. El detalle está en [`app/README.md`](../app/README.md).
+
+## 6. Control
+
+![Ciclo de control](diagramas/ciclo-control.png)
+
+Cada 2 s el controlador lee los sensores y `ReglaControl` evalúa:
 
 | Situación | Bomba | Ventilador | LED rojo | LED azul | Zumbador |
 |---|---|---|---|---|---|
-| Temperatura > `TEMP` (deja de ventilar 2 °C por debajo) | — | ON | — | — | — |
-| Temperatura ≥ `TEMPCRIT` | — | ON | — | — | Alarma |
-| Suelo < `SUELOMIN` | Pulsos | — | ON | — | — |
-| Aire < `HUMMIN` y suelo no encharcado | Pulsos | — | ON | — | — |
+| Temperatura > `TEMP` | — | Encendido | — | — | — |
+| Temperatura ≥ `TEMPCRIT` | — | Encendido | — | — | Alarma |
+| Contacto del HR202 cerrado | — | Encendido | — | Encendido | — |
+| Suelo < `SUELOMIN` | Pulsos | — | Encendido | — | — |
 | Suelo > `SUELOMAX` | Bloqueada | — | — | — | — |
-| Aire > `HUMMAX` | — | ON | — | ON | — |
-| Tanque vacío | Bloqueada | — | Parpadea | — | Alarma |
-| DS18B20 desconectado | — | ON (seguridad) | Alternan | Alternan | Alarma |
+| Tanque vacío | Bloqueada | — | Intermitente | — | Alarma |
+| DS18B20 sin respuesta | — | Encendido | Alterna | Alterna | Alarma |
 
 ### Histéresis
 
-Para entrar en BAJA o ALTA basta cruzar el umbral; para volver a NORMAL hay que alejarse `HIST` puntos. Así los relés no se encienden y apagan a cada rato cuando el valor está justo en el límite.
+![Estados con histéresis](diagramas/estados-control.png)
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> NORMAL
-    NORMAL --> BAJA: menor que el mínimo
-    BAJA --> NORMAL: mayor o igual que mínimo + HIST
-    NORMAL --> ALTA: mayor que el máximo
-    ALTA --> NORMAL: menor o igual que máximo − HIST
-```
+- **Temperatura:** ventila al superar `TEMP` y se detiene cuando baja de `TEMP − TEMPHIST`.
+- **Suelo:** pasa a seco por debajo de `SUELOMIN` y vuelve a normal al llegar a `SUELOMIN + HIST`. El encharcado es simétrico con `SUELOMAX`.
+- **Aire:** el módulo HR202 compara la humedad con el umbral de su potenciómetro y cierra su relé. El firmware acepta un cambio solo cuando el contacto se repite en 3 lecturas seguidas (6 s), para descartar rebotes.
+
+### Humedad del aire con el módulo HR202
+
+El módulo no tiene salida de señal: su comparador LM393 activa un relé propio. El firmware lee ese relé como un contacto seco. COM va a GND y NO va a D3, configurado con `INPUT_PULLUP`. Contacto cerrado (D3 en bajo) significa humedad por encima del umbral. Por eso la humedad del aire es binaria (normal o alta) y el riego automático depende solo de la humedad del suelo.
 
 ### Riego por pulsos
 
-La bomba riega 5 s y espera al menos 1 min antes del siguiente pulso, para que el agua se reparta y el sensor lo note. Además, nunca suma más de 15 min por hora (el fabricante permite 20). Con los valores de fábrica trabaja como máximo unos 4.6 min por hora. El riego manual se salta la pausa, pero respeta el cupo y el tanque.
+La bomba riega 5 s y espera al menos 1 min antes del siguiente pulso, para que el agua se reparta y la sonda la detecte. No suma más de 15 min por hora; el fabricante admite 20. Con los valores de fábrica trabaja como máximo unos 4.6 min por hora. El riego manual se salta la pausa, pero respeta el tope horario y el tanque.
 
-### Luz de cultivo
+### Reloj
 
-Un reloj por software (basado en `millis()`) lleva la hora del día. Arranca a las 08:00 y se pone en hora con el comando `HORA` o, automáticamente, al conectar el dashboard. Sin módulo RTC el reloj puede desviarse unos minutos por día y se reinicia si se corta la energía.
+Un reloj por software basado en `millis()` lleva la hora del día. Arranca a las 08:00 y se sincroniza con el comando `HORA`, que la aplicación envía al conectarse. La hora se muestra en la LCD y viaja en la telemetría. Sin módulo RTC puede desviarse algunos minutos por día y se reinicia si se corta la energía.
 
 ## 7. Energía
 
-Todo se alimenta del USB del Arduino, que entrega como máximo 500 mA. Para no superarlo, con `ALIMENTACION_SOLO_ARDUINO = true` solo una carga grande funciona a la vez, con prioridad **bomba > ventilador > luz**. El reparto se recalcula en cada vuelta del loop, así que nunca coinciden dos cargas.
+Todo se alimenta del USB del Arduino. Con `ALIMENTACION_SOLO_ARDUINO = true` la bomba y el ventilador nunca funcionan a la vez: la bomba tiene prioridad y el ventilador se pausa durante el pulso de riego. El reparto se recalcula en cada vuelta del `loop()`.
 
-| Consumo aproximado | mA |
+| Consumo | mA |
 |---|---|
 | Arduino Uno | 50 |
-| Una bobina de relé | 70 |
-| Bomba sumergible (este modelo: 130–220 mA a 5 V) | 220 |
-| 2 LEDs con 220 Ω | 30 |
+| Bobina de un módulo relé | 70 |
+| Bomba sumergible (130–220 mA a 5 V) | 220 |
+| Ventilador 40 × 40 mm | 100 |
+| Relé y LEDs del módulo HR202, con el aire húmedo | 80 |
 | LCD con luz de fondo | 25 |
-| Sensores | 10 |
-| Zumbador (al pitar) | 30 |
-| **Peor caso, con la bomba** | **≈ 435** |
+| LED rojo y LED azul con 220 Ω | 27 |
+| Zumbador piezoeléctrico | 12 |
+| DS18B20 y sondas | 10 |
+| **Peor caso: bomba, aire húmedo, alarma y LEDs a la vez** | **≈ 495** |
 
-Si el Arduino se reinicia al arrancar la bomba (en el monitor serie vuelve a aparecer el mensaje de inicio), se alimentan las cargas con un cargador de 5 V aparte y se pone `ALIMENTACION_SOLO_ARDUINO = false`.
+El peor caso dura lo que un pulso de riego (5 s) y queda por debajo de los 500 mA del puerto. El fusible reajustable del Arduino corta a partir de 1 A.
 
 ## 8. Fallas y respuesta segura
 
-| Falla | Cómo se detecta | Respuesta del sistema |
+| Falla | Detección | Respuesta |
 |---|---|---|
-| DS18B20 desconectado | Lee −127 °C o fuera de −55…125 °C | Ventilador encendido, LEDs alternados, alarma |
-| Sonda de suelo al aire o cable suelto | Lectura ≥ 1015 | Se ignora el suelo y se decide por la humedad del aire |
-| Tanque vacío | Sonda del tanque al aire | Bomba bloqueada, LED rojo parpadea, alarma |
-| Bomba trabajando de más | Contador de tiempo por hora | Se detiene al llegar a 15 min/h |
-| EEPROM vacía o dañada | Firma, versión, checksum y rangos | Carga los valores de fábrica |
-| Arduino se reinicia | — | Los relés arrancan apagados (sin clic) y los ajustes se recuperan de la EEPROM |
-| Pantalla no conectada | No responde en 0x27 ni 0x3F | El sistema sigue sin pantalla |
-| Comando inválido | Validación antes de aplicar | Responde con un error y no cambia nada |
-| Desbordamiento de `millis()` (cada 49.7 días) | Restas sin signo | Los tiempos siguen funcionando |
+| DS18B20 desconectado | −127 °C o fuera de −55…125 °C | Ventilador encendido, LEDs alternados, alarma |
+| Sonda de suelo al aire o cable suelto | Lectura ≥ 1015 | Se ignora el suelo y no hay riego automático |
+| Tanque vacío | Sonda del tanque al aire | Bomba bloqueada, LED rojo intermitente, alarma |
+| Bomba trabajando de más | Tiempo acumulado por hora | Se detiene al llegar a 15 min/h |
+| EEPROM vacía o dañada | Firma, versión, checksum y rangos | Valores de fábrica |
+| Reinicio del Arduino | — | Los relés arrancan apagados, sin clic; los ajustes vuelven de la EEPROM |
+| Pantalla ausente | Sin respuesta en 0x27 ni 0x3F | El sistema sigue sin pantalla |
+| Comando inválido | Validación antes de aplicar | Respuesta de error, sin cambios |
+| Desbordamiento de `millis()` (cada 49.7 días) | Restas sin signo | Los tiempos siguen siendo correctos |
 
-## 9. Pruebas
+## 9. Verificación
 
-| Nivel | Qué cubre | Cómo se ejecuta |
+| Nivel | Cobertura | Ejecución |
 |---|---|---|
-| Unitarias (25) | Histéresis, reglas de riego y ventilación, ciclo de la bomba, reparto de energía, reloj, comandos, validación de ajustes | `cd firmware && pio test -e native` |
-| Compilación | Firmware para Arduino Uno, con y sin LCD, y uso de memoria | GitHub Actions en cada cambio (`.github/workflows/firmware.yml`) |
-| Simulación | Circuito completo con piezas equivalentes | Tinkercad ([guía](tinkercad.md)) |
-| Integración en el banco | Cada sensor y actuador con el circuito real | Tabla de pruebas del [manual de usuario](manual-usuario.md#probar-cada-parte) |
+| Unitarias (25) | Histéresis, riego, ventilación, ciclo de la bomba, reparto de energía, reloj, comandos y validación de ajustes | `cd firmware && pio test -e native` |
+| Compilación | Firmware para el Uno con y sin LCD, uso de memoria y construcción de la aplicación | GitHub Actions en cada cambio |
+| Simulación | Circuito completo con piezas equivalentes | Tinkercad ([documentación](tinkercad.md)) |
+| Aplicación | Modo demostración con el mismo protocolo del firmware | `app/dist/index.html` |
+| Banco | Cada sensor y actuador con el circuito real | Tabla de pruebas del [manual de usuario](manual-usuario.md#pruebas-de-funcionamiento) |
 
-## 10. Limitaciones conocidas
+## 10. Limitaciones
 
-- **HR202:** no viene calibrado de fábrica; el porcentaje es una aproximación entre dos puntos de calibración.
-- **Sondas caseras:** se corroen con el tiempo, aunque solo se energizan durante la medición. Conviene limpiarlas o cambiar los clavos cada pocas semanas.
-- **Reloj:** sin módulo RTC puede desviarse unos minutos por día.
-- **Memoria flash:** el firmware usa el 90 % de la flash. Para agregar funciones grandes conviene desactivar la LCD (`USAR_LCD 0`, que libera unos 4.7 KB) o pasar a un Arduino Mega.
+- **Humedad del aire:** el módulo HR202 entrega solo «sobre el umbral» o «bajo el umbral». No hay porcentaje, y el umbral se ajusta a mano con su potenciómetro.
+- **Sondas caseras:** se oxidan con el tiempo, aunque solo se energizan durante la medición. Los clavos se limpian o se cambian cada pocas semanas.
+- **Reloj:** sin RTC puede desviarse algunos minutos por día; la aplicación lo corrige al conectarse.
+- **Alimentación:** con solo USB, la bomba y el ventilador no funcionan a la vez.
+- **Memoria flash:** el firmware ocupa la mayor parte de los 32 KB. Para funciones grandes, se puede compilar sin LCD (`USAR_LCD 0`) o migrar a un Arduino Mega.
 
-## 11. Posibles mejoras
+## 11. Mejoras posibles
 
-- Módulo RTC DS3231 para que el reloj no se desvíe ni se pierda.
-- Sensor capacitivo de suelo, que no se corroe.
-- Tarjeta microSD para guardar datos sin computador.
-- Placa con WiFi para ver los datos a distancia.
+- Módulo RTC DS3231 para conservar la hora.
+- Sensor capacitivo de humedad del suelo, que no se oxida.
+- Sensor de humedad del aire con salida en porcentaje, como el SHT31.
+- Fuente de 5 V independiente para las cargas, para ventilar y regar a la vez.

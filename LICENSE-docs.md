@@ -8,7 +8,7 @@ Puedes copiar, compartir y adaptar este material para cualquier fin, siempre que
 
 Texto legal completo: <https://creativecommons.org/licenses/by/4.0/legalcode.es>
 
-El código (`firmware/`, `dashboard/`, `tinkercad/`, `tools/`) está bajo la licencia MIT; ver [LICENSE](LICENSE).
+El código (`firmware/`, `app/`, `tinkercad/`, `tools/`) está bajo la licencia MIT; ver [LICENSE](LICENSE).
 
 ## Librerías de terceros
 
@@ -20,3 +20,11 @@ El firmware usa estas librerías, que se descargan aparte y conservan sus propia
 | DallasTemperature | Miles Burton y otros | LGPL 2.1 |
 | LiquidCrystal_I2C | Frank de Brabander / Marco Schwartz | Ver la librería |
 | Arduino core para AVR | Arduino | LGPL 2.1 |
+
+La aplicación usa estas dependencias, que se incluyen en `app/dist` al construirla:
+
+| Paquete | Licencia |
+|---|---|
+| React y React DOM | MIT |
+| d3-scale, d3-shape, d3-interpolate | ISC |
+| react-icons (íconos Lucide) | MIT (paquete), ISC (íconos Lucide) |

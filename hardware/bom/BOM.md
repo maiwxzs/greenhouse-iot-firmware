@@ -1,55 +1,54 @@
-# Lista de materiales (BOM)
+# Lista de materiales
+
+Componentes instalados en el invernadero, con las especificaciones y medidas usadas en el diseño y en el modelo 3D.
 
 ## Electrónica
 
-### Ya comprado
+| Cant. | Componente | Especificaciones | Medidas | Función |
+|---|---|---|---|---|
+| 1 | Arduino Uno R3, clon con CH340G, y cable USB A-B | ATmega328P, 16 MHz, 5 V, 2 KB RAM, 32 KB flash | 68.6 × 53.3 mm | Controlador |
+| 1 | Protoboard MB-102 | 830 puntos, dos pares de rieles | 165 × 55 × 8.5 mm | Montaje sin soldadura |
+| 1 | Sonda DS18B20 sumergible | 1-Wire, 3.0–5.5 V, −55 a 125 °C, ±0.5 °C, 12 bits | Punta de acero Ø6 × 50 mm, cable de 1 m (rojo, negro, amarillo) | Temperatura del aire |
+| 1 | Módulo de humedad HR202 con relé | 5 V, comparador LM393, potenciómetro de umbral, relé con bornera NO/COM/NC, LEDs de alimentación y de salida | Placa azul de 50 × 26 mm | Humedad del aire alta |
+| 2 | Módulo relé de 1 canal con optoacoplador | Bobina de 5 V, relé JQC-3FF-S-Z de 10 A, activo en bajo, jumper JD-VCC, bornera NO/COM/NC | Placa negra de 50 × 26 mm | Bomba y ventilador |
+| 1 | Mini bomba sumergible | 3–6 V, 130–220 mA, 80–120 L/h, elevación de 40 a 110 cm, salida Ø7.5 mm, entrada Ø5 mm, uso máximo 20 min por hora | Cuerpo Ø24 × 45 mm, 33 mm de alto con la salida | Riego |
+| 1 | Ventilador Pengda 5 V DC | 0.1 A, conector JST de 2 pines | 40 × 40 × 10 mm, agujeros a 32 mm | Ventilación |
+| 1 | Zumbador piezoeléctrico activo | 3–24 V DC, unos 12 mA a 5 V, tono continuo de unos 3 kHz, carcasa de ABS negro con rejilla | Cuerpo de 30 × 20 × 13 mm, 44 mm de largo con las orejas, agujeros a 38 mm, cables de 90 mm | Alarma |
+| 1 | Pantalla LCD 16×2 con módulo I2C PCF8574 | 5 V, luz de fondo, dirección 0x27 o 0x3F | 80 × 36 mm, ventana de 64 × 14 mm | Pantalla local |
+| 1 | LED rojo de 5 mm | | Ø5 mm | Suelo seco, tanque vacío |
+| 1 | LED azul de 5 mm | | Ø5 mm | Aire húmedo |
+| 2 | Resistencia de 220 Ω, ¼ W | | | LEDs |
+| 1 | Resistencia de 4.7 kΩ, ¼ W | | | Pull-up del bus 1-Wire |
+| 1 | Pulsador de 12 mm | Normalmente abierto | Ø12 mm | Riego manual y silencio |
+| 1 juego | Cables Dupont macho-macho | | 20 cm | Arduino y protoboard |
+| 1 juego | Cables Dupont macho-hembra | | 30 cm | Módulos, sensores y cargas |
 
-| Cant. | Componente | Especificación clave | Uso |
-|---|---|---|---|
-| 1 | Sensor DS18B20 sumergible | 1-Wire, 3.0–5.5 V, −55 a 125 °C, ±0.5 °C, cable de ~95 cm | Temperatura |
-| 1 | Módulo HR202 con comparador LM393 | 3.3–5 V, 20–95 % HR, salidas DO y AO | Humedad del aire |
-| 1 | Mini bomba sumergible | 3–6 V, 80–120 L/h, salida de 7.5 mm, **máx. 20 min/hora** | Aspersor |
-| 1 | Mini ventilador 40×40×10 mm | 5 V, 0.1 A | Ventilación |
-| 3 | Módulo relé de 1 canal con optoacoplador | Bobina de 5 V, borneras COM/NO/NC | Bomba, ventilador y luz |
-| 1 | Protoboard de 830 puntos | | Montaje sin soldar |
-| 10 | Cables Dupont macho-macho de 20 cm | | Arduino y protoboard |
-| 10 | Cables Dupont macho-hembra de 30 cm | | Módulos |
-
-### Por comprar
-
-| Cant. | Componente | Por qué | Obligatorio |
-|---|---|---|---|
-| 1 | **Arduino Uno R3** (clon con CH340G sirve) y su cable USB | Controlador | Sí |
-| 1 | **Resistencia de 4.7 kΩ** (sirve también 10 kΩ) | Pull-up del DS18B20; sin ella lee −127 °C | Sí |
-| 2 | LED de 5 mm (rojo y azul) | Indicadores de humedad | Sí |
-| 2 | Resistencia de 220 Ω (o 330 Ω) | Una por LED | Sí |
-| 1 | Pantalla LCD 16×2 **con módulo I2C** ya soldado | Ver datos sin computador | Recomendado |
-| 1 | Zumbador (buzzer) activo de 5 V | Alarma sonora | Recomendado |
-| 1 | Pulsador de 12 mm (o un pulsador pequeño de protoboard) | Riego manual | Recomendado |
-| 1 | Lámpara LED USB pequeña (≤ 1 W) | Luz de cultivo en el relé 3 | Opcional |
-| 2 | Diodo 1N4007 | Protege los relés de los picos de los motores | Recomendado |
-| 10 | Cables Dupont hembra-hembra o más macho-hembra | Con LCD, zumbador y relés no alcanzan los 10 macho-hembra | Recomendado |
-
-### Hecho en casa (sin costo)
-
-| Cant. | Componente | Uso |
-|---|---|---|
-| 2 | Clavos galvanizados o tornillos de 5–7 cm | Sonda de humedad del suelo |
-| 2 | Cables con la punta pelada | Sonda de nivel del tanque |
-
-## Maqueta
-
-Medidas y piezas en [`hardware/maqueta/planos-de-corte.svg`](../maqueta/planos-de-corte.svg) y guía en [`docs/montaje-maqueta.md`](../../docs/montaje-maqueta.md).
+## Sondas
 
 | Cant. | Material | Uso |
 |---|---|---|
-| 1 | Tablero de MDF de 3 mm o cartón paja de 5 mm, 46 × 30 cm o más | Base |
-| 1 | Lámina de MDF de 3 mm o cartón paja, unos 40 × 40 cm | Caja de la electrónica |
-| ≈ 3.5 m | Palitos de balso de 10 × 10 mm | Estructura del invernadero |
-| 2 pliegos | Acetato o acrílico transparente de 1.5–2 mm | Paredes y techo |
-| 1 | Recipiente plástico de unos 12 × 8.5 × 10 cm | Tanque de agua |
-| 1 | Maceta pequeña (Ø ≈ 11 cm) con tierra y una planta | Cultivo |
-| ≈ 1 m | Manguera de silicona de 5–8 mm | De la bomba al aspersor |
-| 1 | Boquilla o aspersor pequeño (o una tapa perforada) | Salida del agua |
-| 1 | Trozo de malla de tela (8 × 3 cm) | Rejilla de entrada de aire |
-| — | Silicona caliente, cinta doble faz, bisturí, regla metálica | Armado |
+| 2 | Clavos galvanizados de 65 mm | Electrodos de la sonda de suelo |
+| 2 | Cables de cobre aislados, con 5 mm de punta pelada | Electrodos de la sonda del tanque |
+| — | Cinta aislante y termorretráctil | Aislamiento de las uniones |
+
+## Maqueta
+
+Piezas y medidas en [`planos-de-corte.svg`](../maqueta/planos-de-corte.svg); construcción en [`docs/maqueta.md`](../../docs/maqueta.md).
+
+| Cant. | Material | Uso |
+|---|---|---|
+| 1 | Tablero de MDF de 6 mm, 470 × 310 mm | Base |
+| 1 | Lámina de MDF de 3 mm, 450 × 600 mm | Caja de la electrónica |
+| 5.3 m | Listón de balso de 10 × 10 mm | Estructura del invernadero |
+| 1 | Lámina de acrílico transparente de 2 mm, 600 × 900 mm | Paredes y techo |
+| 2 | Bisagras pequeñas de 25 mm | Techo abatible |
+| 1 | Recipiente plástico de 1 L, 120 × 85 × 100 mm | Tanque |
+| 1 | Maceta Ø110 mm arriba, Ø80 mm abajo, 95 mm de alto, con tierra y una planta | Cultivo |
+| 0.6 m | Manguera de silicona de 6 mm de diámetro interior | De la bomba a la boquilla |
+| 1 | Boquilla de riego cónica | Salida del agua sobre la maceta |
+| 1 | Malla plástica de 80 × 30 mm | Rejilla de entrada de aire |
+| 8 | Separadores de 3 mm con tornillo M3 | Arduino y módulos en la caja |
+| 2 | Separadores de 6 mm con tornillo M3 | Módulo HR202 en la pared del invernadero |
+| 2 | Tornillos M2 × 8 mm con tuerca | Zumbador sobre la tapa |
+| 4 | Tornillos M3 × 12 mm con tuerca | Ventilador en la pared |
+| — | Pegamento de contacto para balso, silicona transparente, cinta doble faz, bridas plásticas | Uniones y sujeción de cables |

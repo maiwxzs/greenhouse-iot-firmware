@@ -66,16 +66,16 @@ def pin_arduino(y, nombre, color):
 
 # Filas: (y, pin, color, componente)
 FILAS = [
-    (240, "D2", SENAL), (320, "D3", SENAL), (350, "A0", ANALOG), (430, "D4", SENAL),
+    (240, "D2", SENAL), (320, "D3", SENAL), (430, "D4", SENAL),
     (510, "D5", SENAL), (580, "D6", SENAL), (650, "D10", SENAL),
-    (740, "D7", SENAL), (830, "D8", SENAL), (920, "D9", SENAL),
-    (1010, "A1", ANALOG), (1090, "A2", ANALOG), (1170, "A4 SDA", I2C), (1200, "A5 SCL", I2C),
+    (740, "D7", SENAL), (830, "D8", SENAL),
+    (920, "A1", ANALOG), (1000, "A2", ANALOG), (1080, "A4 SDA", I2C), (1110, "A5 SCL", I2C),
 ]
 
-ALTO = 1290
+ALTO = 1200
 partes.append(f"<rect width='1500' height='{ALTO}' fill='#F7FAF8'/>")
 t(40, 46, "Invernadero IoT: esquema de conexiones (Arduino Uno R3)", 24, "700")
-t(40, 72, "Todo se alimenta desde el USB del Arduino. Los relés usan el borne NO (normalmente abierto).", 14, color="#546E7A")
+t(40, 72, "Alimentación por el USB del Arduino. Los relés conmutan sus cargas por el borne NO (normalmente abierto).", 14, color="#546E7A")
 
 # Arduino
 caja(60, 100, X_PIN - 60, ALTO - 150, "Arduino Uno R3", "clon CH340G, por USB", "#E3F2FD")
@@ -114,11 +114,13 @@ camino([(560, 240), (560, 205), (530, 205)], SENAL)
 resistencia(507, 205, "4.7 kΩ")
 camino([(485, 205), (X_5V, 205)], ROJO); punto(X_5V, 205, ROJO)
 
-# 2. HR202
-caja(X_COMP, 295, ANCHO_COMP, 75, "Módulo HR202", "humedad del aire: DO, AO")
-toma(305, X_COMP, "5V"); toma(362, X_COMP, "GND")
-senal(320, SENAL); senal(350, ANALOG)
-t(X_COMP - 8, 316, "DO", 11, ancla="end"); t(X_COMP - 8, 346, "AO", 11, ancla="end")
+# 2. Módulo HR202 con relé: alimentación y contacto seco (NO a D3, COM a GND)
+caja(X_COMP, 290, ANCHO_COMP, 82, "Módulo HR202 con relé", "humedad del aire: contacto NO / COM")
+toma(302, X_COMP, "5V"); toma(362, X_COMP, "GND")
+senal(320, SENAL)
+t(X_COMP - 8, 316, "NO", 11, ancla="end")
+toma(345, X_COMP, "GND"); t(X_COMP - 8, 341, "COM", 11, ancla="end")
+t(X_COMP + 12, 362, "el umbral se ajusta con su potenciómetro", 11, color="#546E7A")
 
 # 3. Botón
 caja(X_COMP, 405, ANCHO_COMP, 50, "Pulsador", "riego manual / silenciar")
@@ -126,7 +128,7 @@ senal(430, SENAL)
 toma(448, X_COMP, "GND")
 
 # 4-5. LEDs
-for y, nombre, col in [(510, "LED rojo (humedad baja)", "#E53935"), (580, "LED azul (humedad alta)", "#1E88E5")]:
+for y, nombre, col in [(510, "LED rojo (suelo seco)", "#E53935"), (580, "LED azul (aire húmedo)", "#1E88E5")]:
     linea(X_PIN, y, 520, y, SENAL)
     resistencia(542, y, "220 Ω")
     linea(564, y, X_COMP, y, SENAL)
@@ -135,14 +137,13 @@ for y, nombre, col in [(510, "LED rojo (humedad baja)", "#E53935"), (580, "LED a
     toma(y + 18, X_COMP, "GND")
 
 # 6. Zumbador
-caja(X_COMP, 625, ANCHO_COMP, 50, "Zumbador (buzzer)", "+ a D10, − a GND")
+caja(X_COMP, 625, ANCHO_COMP, 50, "Zumbador piezo activo 3–24 V", "rojo + a D10, negro − a GND")
 senal(650, SENAL); toma(668, X_COMP, "GND")
 
 # 7-9. Relés y cargas
 X_CARGA_5V, X_CARGA_GND = 930, 1330
 for y, rele, carga, nota in [(740, "Relé 1", "Mini bomba", "aspersor, 3–6V"),
-                             (830, "Relé 2", "Ventilador 5V", "40×40 mm, 0.1 A"),
-                             (920, "Relé 3", "Luz de cultivo", "lámpara LED USB pequeña")]:
+                             (830, "Relé 2", "Ventilador 5V", "40×40 mm, 0.1 A")]:
     caja(X_COMP, y - 35, ANCHO_COMP, 72, f"{rele} (módulo 5V)", "VCC, GND, IN  |  COM, NO")
     toma(y - 22, X_COMP, "5V"); toma(y + 24, X_COMP, "GND")
     senal(y, SENAL)
@@ -158,31 +159,31 @@ for y, rele, carga, nota in [(740, "Relé 1", "Mini bomba", "aspersor, 3–6V"),
     punto(X_CARGA_GND, y + 8, NEGRO)
 
 # Rieles de potencia de las cargas (salen del 5V y GND del Arduino)
-camino([(X_5V, 150), (X_5V, 120), (X_CARGA_5V, 120), (X_CARGA_5V, 908)], CARGA, 3)
+camino([(X_5V, 150), (X_5V, 120), (X_CARGA_5V, 120), (X_CARGA_5V, 818)], CARGA, 3)
 punto(X_5V, 120, ROJO)
-linea(X_CARGA_GND, 748, X_CARGA_GND, 960, NEGRO, 3)
-tierra(X_CARGA_GND, 960)
-t(X_CARGA_GND + 16, 985, "a GND del Arduino", 12)
+linea(X_CARGA_GND, 748, X_CARGA_GND, 870, NEGRO, 3)
+tierra(X_CARGA_GND, 870)
+t(X_CARGA_GND + 16, 895, "a GND del Arduino", 12)
 t(X_CARGA_5V + 8, 138, "5V para las cargas (del pin 5V)", 12, color=CARGA)
 
 # 10-11. Sondas caseras
-for y, nombre, sub in [(1010, "Sonda de suelo", "dos clavos; usa el pull-up interno"),
-                       (1090, "Sonda del tanque", "dos cables; usa el pull-up interno")]:
+for y, nombre, sub in [(920, "Sonda de suelo", "dos clavos; usa el pull-up interno"),
+                       (1000, "Sonda del tanque", "dos cables; usa el pull-up interno")]:
     caja(X_COMP, y - 25, ANCHO_COMP, 56, nombre, sub, "#E8F5E9")
     senal(y, ANALOG)
     toma(y + 20, X_COMP, "GND")
 
 # 12. LCD
-caja(X_COMP, 1140, ANCHO_COMP, 80, "LCD 16×2 con módulo I2C", "dirección 0x27 o 0x3F")
-toma(1155, X_COMP, "5V"); toma(1212, X_COMP, "GND")
-senal(1170, I2C); senal(1200, I2C)
+caja(X_COMP, 1050, ANCHO_COMP, 80, "LCD 16×2 con módulo I2C", "dirección 0x27 o 0x3F")
+toma(1065, X_COMP, "5V"); toma(1122, X_COMP, "GND")
+senal(1080, I2C); senal(1110, I2C)
 
 # Leyenda
-lx, ly = 1010, 1060
+lx, ly = 1010, 950
 partes.append(f"<rect x='{lx - 16}' y='{ly - 30}' width='420' height='212' rx='6' fill='#FFFFFF' stroke='#B0BEC5'/>")
 t(lx, ly - 6, "Colores de los cables", 15, "600")
 for i, (col, txt) in enumerate([(ROJO, "5V"), (NEGRO, "GND (tierra)"), (SENAL, "señal digital"),
-                                (ANALOG, "señal analógica"), (I2C, "bus I2C de la pantalla"), (CARGA, "potencia de bomba, ventilador y luz")]):
+                                (ANALOG, "señal analógica"), (I2C, "bus I2C de la pantalla"), (CARGA, "potencia de la bomba y el ventilador")]):
     yy = ly + 22 + i * 24
     linea(lx, yy - 5, lx + 36, yy - 5, col, 3)
     t(lx + 48, yy, txt, 13)

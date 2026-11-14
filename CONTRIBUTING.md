@@ -1,40 +1,54 @@
-# Cómo trabajar en el proyecto
+# Contribuir
 
 ## Flujo de trabajo
 
-1. Descarga los últimos cambios: `git pull`.
-2. Para cambios grandes, crea una rama: `git checkout -b nombre-del-cambio`.
-3. Haz el cambio y pruébalo (ver abajo).
-4. Commit con un mensaje que diga qué cambió, en español: `git commit -m "Agrega calibración del tanque al dashboard"`.
-5. `git push` y, si usaste una rama, abre un Pull Request para que otro integrante lo revise.
+1. Actualizar la copia local con `git pull`.
+2. Para cambios grandes, trabajar en una rama: `git checkout -b nombre-del-cambio`.
+3. Probar el cambio (ver abajo).
+4. Hacer commit con un mensaje en español que diga qué cambió, por ejemplo `Agrega calibración del tanque a la aplicación`.
+5. Subir con `git push` y, si se usó una rama, abrir un Pull Request para revisión.
 
-## Antes de subir cambios al firmware
+## Verificación
+
+**Firmware:**
 
 ```bash
 cd firmware
-pio test -e native     # pruebas de la lógica, en el computador
-pio run                # compila para el Arduino Uno
+pio test -e native     # pruebas de la lógica en el computador
+pio run                # compila para el Arduino Uno, con y sin LCD
 ```
 
-GitHub Actions repite esas dos cosas en cada push. Si algo falla, la pestaña **Actions** del repositorio muestra el error.
+**Aplicación:**
 
-Si usas el Arduino IDE en lugar de PlatformIO, al menos compila (botón ✓) antes de subir.
+```bash
+cd app
+npm install
+npm run build          # genera app/dist, que también se sube al repositorio
+```
 
-## Convenciones de código
+GitHub Actions repite estas verificaciones en cada push; el resultado y el uso de memoria del Arduino aparecen en la pestaña **Actions**.
 
-- **Lenguaje:** C++11 para Arduino AVR. No hay `std::string` ni `std::vector`; se usan `const char*`, arreglos de tamaño fijo y `F("...")` para textos.
-- **Nombres:** `camelCase` para métodos y variables, `PascalCase` para clases, `UPPER_CASE` para constantes.
-- **Dónde va cada cosa:**
-  - Las **decisiones** (reglas, cálculos) van en `Logica.h`, sin `Arduino.h`, para poder probarlas en el computador.
-  - Lo que toca **pines y hardware** va en `GreenhouseCore.hpp`.
-  - Los **pines, umbrales y tiempos** van en `Config.h`.
-- **Sin bloqueos:** nada de `delay()` largos; usar `millis()`.
-- **Pruebas:** toda regla nueva lleva su prueba en `firmware/test/test_logica/test_logica.cpp`.
-- **Memoria:** el Uno tiene 2 KB de RAM. Revisa el resumen de memoria en GitHub Actions; la RAM debería quedar por debajo del 75 %.
+## Convenciones del firmware
+
+- **Lenguaje:** C++11 para AVR, sin STL. Textos con `F("...")` para que vivan en la memoria flash.
+- **Nombres:** `camelCase` para métodos y variables, `PascalCase` para clases y `UPPER_CASE` para constantes.
+- **Ubicación:**
+  - Decisiones y cálculos en `Logica.h`, sin `Arduino.h`, para poder probarlos en el computador.
+  - Acceso a pines y hardware en `GreenhouseCore.hpp`.
+  - Pines, umbrales de fábrica y tiempos en `Config.h`.
+- **Sin bloqueos:** tiempos con `millis()`, sin `delay()` largos.
+- **Pruebas:** cada regla nueva lleva su prueba en `firmware/test/test_logica/test_logica.cpp`.
+- **Memoria:** el Uno tiene 2 KB de RAM. El historial y los textos largos pertenecen a la aplicación, no al firmware.
+
+## Convenciones de la aplicación
+
+- Componentes en `app/src/componentes/`, lógica sin interfaz en `app/src/lib/`.
+- Todo cambio en el protocolo se aplica a la vez en el firmware, en `protocolo.js`, en `simulador.js` y en `docs/protocolo-serie.md`.
+- Cada animación representa un dato real del invernadero.
 
 ## Documentación y diseños
 
-- **Diagramas:** edita el `.mmd` en `docs/diagramas/` y ejecuta `python3 tools/generar_diagramas.py`.
-- **Pines:** si los cambias, actualiza `Config.h`, `hardware/circuits/conexiones.md` y `tools/generar_esquema.py`. Luego regenera el esquema.
-- **Maqueta:** cambia los PARÁMETROS de `tools/generar_maqueta.py` y ejecútalo.
-- **Cambios para el usuario:** anótalos en `CHANGELOG.md`.
+- **Diagramas:** editar el diccionario `DIAGRAMAS` de `tools/generar_diagramas.py` y ejecutarlo.
+- **Pines:** actualizar `Config.h`, `tools/generar_esquema.py` y `hardware/circuits/conexiones.md`, y regenerar el esquema.
+- **Maqueta:** cambiar los parámetros de `tools/generar_maqueta.py` y ejecutarlo.
+- **Cambios visibles:** anotarlos en `CHANGELOG.md`.

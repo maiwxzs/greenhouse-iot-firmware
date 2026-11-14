@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Convierte los diagramas Mermaid de docs/diagramas/*.mmd en:
+"""Genera los diagramas del proyecto en docs/diagramas/:
 
-  *.svg     imagen vectorial (para ver o insertar en documentos)
-  *.png     imagen para presentaciones
-  *.drawio  archivo de draw.io con figuras nativas editables. Igual que al insertar un
-            diagrama con Arrange > Insert > Advanced > Mermaid: el código Mermaid queda guardado
-            en el grupo, así que en draw.io se puede volver a editar como Mermaid.
+  <nombre>.svg     imagen vectorial
+  <nombre>.png     imagen para documentos y presentaciones
+  <nombre>.drawio  archivo de draw.io con figuras nativas editables (el grupo guarda
+                   el código Mermaid, así que en draw.io también se edita como Mermaid)
 
-Requisitos: Node.js con @mermaid-js/mermaid-cli (comando mmdc), Python con playwright y Chrome.
+Las definiciones están en el diccionario DIAGRAMAS de este archivo.
+Requisitos: Node.js con @mermaid-js/mermaid-cli (mmdc), Python con playwright y Google Chrome.
 Uso:  python3 tools/generar_diagramas.py [--chrome /ruta/a/chrome]
 """
 import argparse
@@ -24,16 +24,521 @@ from playwright.sync_api import sync_playwright
 RAIZ = Path(__file__).resolve().parent.parent
 DIR = RAIZ / "docs" / "diagramas"
 
+PALETA = """
+    classDef sensor fill:#E3F0FA,stroke:#2370AE,color:#16324A,stroke-width:1.5px
+    classDef actuador fill:#FFF1DC,stroke:#B9790A,color:#4A3305,stroke-width:1.5px
+    classDef control fill:#E3F2E8,stroke:#2E7A4C,color:#173B26,stroke-width:1.5px
+    classDef interfaz fill:#F2E8F7,stroke:#7B3FA0,color:#3A1F4C,stroke-width:1.5px
+    classDef dato fill:#EEF1F4,stroke:#546E7A,color:#263238,stroke-width:1.5px
+    classDef app fill:#E0F2EF,stroke:#00796B,color:#0F3B36,stroke-width:1.5px
+"""
+
+DIAGRAMAS = {
+    "arquitectura-sistema": """flowchart LR
+    subgraph SENS["Sensores y entradas"]
+        direction TB
+        BTN["Pulsador<br/>riego manual y silencio"]
+        DS["DS18B20<br/>temperatura del aire"]
+        HR["Módulo HR202 con relé<br/>humedad del aire"]
+        SU["Sonda de suelo<br/>dos electrodos"]
+        TQ["Sonda del tanque<br/>dos electrodos"]
+    end
+    subgraph MCU["Arduino Uno R3, firmware 3.0"]
+        direction TB
+        CTRL["ControladorArduino<br/>muestra cada 2 s"]
+        LOG["Logica.h<br/>reglas con histéresis"]
+        EE[("EEPROM<br/>ajustes y calibración")]
+    end
+    subgraph ACT["Actuadores"]
+        direction TB
+        R1["Relé 1<br/>bomba sumergible"]
+        R2["Relé 2<br/>ventilador 5 V"]
+    end
+    subgraph HMI["Interfaz local"]
+        direction TB
+        LCD["LCD 16x2 I2C"]
+        LED["LED rojo y LED azul"]
+        ZUM["Zumbador piezo<br/>activo 3–24 V"]
+    end
+    subgraph PC["Computador"]
+        direction TB
+        APP["Aplicación React<br/>Web Serial"]
+        IDB[("IndexedDB<br/>historial y eventos")]
+    end
+    DS -->|"1-Wire, D2"| CTRL
+    HR -->|"contacto seco, D3"| CTRL
+    SU -->|"analógica, A1"| CTRL
+    TQ -->|"analógica, A2"| CTRL
+    CTRL <--> LOG
+    CTRL <-->|"lee y guarda"| EE
+    CTRL -->|"D7"| R1
+    CTRL -->|"D8"| R2
+    CTRL -->|"I2C, A4 y A5"| LCD
+    CTRL -->|"D5 y D6"| LED
+    CTRL -->|"D10"| ZUM
+    BTN -->|"D4"| CTRL
+    CTRL <-->|"USB serie 9600<br/>JSON y comandos"| APP
+    APP <--> IDB
+    class DS,HR,SU,TQ,BTN sensor
+    class R1,R2 actuador
+    class CTRL,LOG control
+    class EE,IDB dato
+    class LCD,LED,ZUM interfaz
+    class APP app
+""" + PALETA,
+
+    "firmware-capas": """flowchart TB
+    subgraph C0["Entrada: src/main.cpp"]
+        MAIN["setup y loop<br/>crea y conecta los objetos"]
+    end
+    subgraph C1["Orquestación: GreenhouseCore.hpp"]
+        direction LR
+        INV["Invernadero"]
+        CTL["ControladorArduino<br/>ciclo, ejecutarLogica,<br/>enviarTelemetria, comandos"]
+    end
+    subgraph C2["Abstracción del hardware: GreenhouseCore.hpp"]
+        direction LR
+        SEN["Sensores<br/>SensorTemperatura, SensorHumedad,<br/>SensorHumedadSuelo, SensorNivelAgua"]
+        ACTU["Actuadores<br/>BombaAgua, Ventilador,<br/>IndicadorLED, Zumbador"]
+        IFZ["Interfaz local<br/>PantallaLCD, BotonPulsador"]
+        ALM["AlmacenAjustes"]
+    end
+    subgraph C3["Lógica pura: Logica.h, cubierta por 25 pruebas unitarias"]
+        direction LR
+        REG["ReglaControl"]
+        CIC["CicloTrabajoBomba"]
+        ENE["repartirEnergia"]
+        REL["RelojSoftware"]
+        PAR["parsearComando"]
+        AJ["Ajustes y checksum"]
+    end
+    subgraph C4["Librerías"]
+        direction LR
+        OW["OneWire y DallasTemperature"]
+        LQ["LiquidCrystal_I2C y Wire"]
+        EEP["EEPROM"]
+    end
+    CFG["Config.h<br/>pines, partes instaladas,<br/>valores de fábrica"]
+    MAIN --> INV
+    INV --> CTL
+    CTL --> SEN
+    CTL --> ACTU
+    CTL --> IFZ
+    CTL --> ALM
+    CTL --> REG
+    CTL --> ENE
+    CTL --> REL
+    CTL --> PAR
+    ACTU --> CIC
+    ALM --> AJ
+    REG --> AJ
+    SEN --> OW
+    IFZ --> LQ
+    ALM --> EEP
+    CFG -.->|"constantes"| CTL
+    class MAIN,INV,CTL control
+    class SEN sensor
+    class ACTU actuador
+    class IFZ interfaz
+    class ALM,AJ,EEP,OW,LQ dato
+    class REG,CIC,ENE,REL,PAR app
+    class CFG dato
+""" + PALETA,
+
+    "ciclo-control": """---
+config:
+  layout: dagre
+---
+flowchart TD
+    INI(["Inicio de una vuelta de loop"]) --> BTN["Atender el pulsador<br/>corto: riego manual, largo: silencio"]
+    BTN --> SER["Atender comandos serie<br/>validar, aplicar y guardar en EEPROM"]
+    SER --> ACT["Actualizar actuadores<br/>fin de pulso, parpadeos y pitidos"]
+    ACT --> T{"¿Pasaron 2 s desde<br/>la última muestra?"}
+    T -->|No| FIN(["Fin de la vuelta, loop vuelve a empezar"])
+    T -->|Sí| LEE["Leer sensores<br/>DS18B20, contacto del HR202,<br/>sondas de suelo y tanque"]
+    LEE --> EVA["ReglaControl evalúa<br/>con histéresis"]
+    EVA --> AG{"¿Tanque vacío?"}
+    AG -->|Sí| BLQ["Bomba bloqueada<br/>LED rojo parpadea y alarma"]
+    AG -->|No| SS{"¿Suelo seco?"}
+    SS -->|Sí| PUL["Pulso de riego de 5 s<br/>pausa de 1 min, tope 15 min/h"]
+    SS -->|No| OFF["Bomba apagada"]
+    BLQ --> V{"¿Calor, aire húmedo o<br/>DS18B20 sin respuesta?"}
+    PUL --> V
+    OFF --> V
+    V -->|Sí| VEN["Pedir el ventilador"]
+    V -->|No| NOV["Ventilador apagado"]
+    VEN --> REP["repartirEnergia<br/>una carga a la vez:<br/>la bomba antes que el ventilador"]
+    NOV --> REP
+    REP --> SAL["LEDs, alarma, telemetría<br/>JSON y pantalla LCD"]
+    SAL --> FIN
+    class INI,FIN interfaz
+    class BTN,SER,ACT,LEE,EVA,REP,SAL control
+    class T,AG,SS,V dato
+    class PUL,OFF,VEN,NOV actuador
+    class BLQ interfaz
+""" + PALETA,
+
+    "estados-control": """stateDiagram-v2
+    direction LR
+    state "Temperatura del aire" as TEMP {
+        [*] --> TNormal
+        TNormal: Normal
+        TVent: Ventilando
+        TCrit: Crítica, ventila y suena la alarma
+        TNormal --> TVent: T mayor que TEMP
+        TVent --> TNormal: T menor que TEMP − TEMPHIST
+        TVent --> TCrit: T mayor o igual que TEMPCRIT
+        TCrit --> TVent: T menor que TEMPCRIT
+    }
+    state "Humedad del suelo" as SUELO {
+        [*] --> SNormal
+        SNormal: Normal, sin riego
+        SSeco: Seco, riego por pulsos
+        SEnch: Encharcado, sin riego
+        SNormal --> SSeco: S menor que SUELOMIN
+        SSeco --> SNormal: S mayor o igual que SUELOMIN + HIST
+        SNormal --> SEnch: S mayor que SUELOMAX
+        SEnch --> SNormal: S menor o igual que SUELOMAX − HIST
+    }
+    state "Humedad del aire" as AIRE {
+        [*] --> ANormal
+        ANormal: Normal
+        AAlta: Alta, ventilando
+        ANormal --> AAlta: contacto cerrado, 3 lecturas
+        AAlta --> ANormal: contacto abierto, 3 lecturas
+    }
+""",
+
+    "secuencia-app-arduino": """sequenceDiagram
+    autonumber
+    actor U as Usuario
+    participant DB as IndexedDB
+    participant APP as Aplicación React
+    participant A as Arduino
+    participant E as EEPROM
+    U->>APP: Conectar Arduino y elegir el puerto
+    APP->>A: Abre el puerto USB a 9600 baudios
+    Note over A: El Arduino se reinicia al abrir el puerto
+    A->>E: Lee los ajustes guardados
+    A-->>APP: Línea cfg con la configuración
+    A-->>APP: Línea tel con hora_sync = 0
+    APP->>A: HORA 14:30:05
+    A-->>APP: Línea ok, cmd HORA
+    loop Cada 2 segundos
+        A-->>APP: Línea tel
+        Note over APP: Detecta eventos y acumula el minuto
+        APP->>DB: Lecturas en lotes de 15 y resumen por minuto
+    end
+    U->>APP: Ajustes, ventilar desde 28 °C
+    APP->>A: TEMP 28
+    Note over A: Valida el conjunto de ajustes, 0 a 60 °C y TEMPCRIT ≥ TEMP
+    A->>E: Guarda solo los bytes que cambiaron
+    A-->>APP: Línea ok y nueva línea cfg
+    APP->>DB: Evento del comando
+""",
+
+    "aplicacion-arquitectura": """flowchart LR
+    ARD["Arduino Uno<br/>USB serie"]
+    subgraph NAV["Navegador Chrome o Edge, instalable como aplicación"]
+        direction LR
+        subgraph HOOKS["Conexión"]
+            direction TB
+            CON["useConexion<br/>Web Serial"]
+            SIM["Simulador<br/>modo demostración"]
+        end
+        subgraph LIB["Datos, src/lib"]
+            direction TB
+            PROT["protocolo.js<br/>interpreta cada línea"]
+            REG["registro.js<br/>eventos, minutos, estadísticas"]
+            ALM["almacen.js"]
+        end
+        subgraph IDB["IndexedDB, en el disco"]
+            direction TB
+            LEC[("lecturas<br/>2 días")]
+            MIN[("minutos<br/>180 días")]
+            EVT[("eventos<br/>180 días")]
+        end
+        subgraph UI["Componentes React"]
+            direction TB
+            APPC["App"]
+            ESC["Escena animada"]
+            INS["Instrumentos"]
+            PES["Pestañas<br/>En vivo, Historial, Eventos,<br/>Ajustes, Calibración, Consola"]
+        end
+        SW["Service worker<br/>abre sin internet"]
+    end
+    ARD <-->|"líneas JSON y comandos"| CON
+    SIM -.->|"mismo protocolo"| PROT
+    CON --> PROT
+    PROT --> APPC
+    APPC --> REG
+    REG --> ALM
+    ALM --> LEC
+    ALM --> MIN
+    ALM --> EVT
+    APPC --> ESC
+    APPC --> INS
+    APPC --> PES
+    PES -->|"consulta el historial"| ALM
+    SW -.-> APPC
+    class ARD control
+    class CON,SIM,SW interfaz
+    class PROT,REG,ALM app
+    class LEC,MIN,EVT dato
+    class APPC,ESC,INS,PES actuador
+""" + PALETA,
+
+    "protocolo-mensajes": """classDiagram
+    direction LR
+    class Arduino {
+        +enviarTelemetria()
+        +enviarAjustes()
+        +ejecutarComando(linea)
+    }
+    class Aplicacion {
+        +interpretarLinea(linea)
+        +enviar(comando)
+    }
+    class Telemetria {
+        <<tipo tel, cada 2 s>>
+        +t_ms : entero
+        +hora : texto hh mm ss
+        +hora_sync : 0 o 1
+        +temp_c : número o null
+        +aire_alta : 0 o 1
+        +hum_suelo : número o null
+        +adc_suelo : entero
+        +agua : 0, 1 o null
+        +adc_agua : entero
+        +estado : Estado
+        +aire : Nivel
+        +suelo : Nivel
+        +ventilador, bomba : 0 o 1
+        +alarma : 0, 1 o 2
+        +bomba_s_hora : entero
+    }
+    class Configuracion {
+        <<tipo cfg>>
+        +version : texto
+        +temp_max, temp_hist, temp_crit : número
+        +suelo_min, suelo_max, hist : número
+        +adc_suelo_seco, adc_suelo_hum : entero
+        +umbral_agua : entero
+        +solo_arduino, sonda_suelo, sonda_agua, lcd : 0 o 1
+    }
+    class Respuesta {
+        <<tipo ok o error>>
+        +cmd : texto
+        +msg : texto
+    }
+    class Comando {
+        <<texto terminado en salto de línea>>
+        +TEMP, TEMPCRIT, TEMPHIST valor
+        +SUELOMIN, SUELOMAX, HIST valor
+        +HORA hh mm ss
+        +RIEGO, SILENCIO, ESTADO, FABRICA
+        +CAL SUELOSECO, SUELOHUMEDO o TANQUE
+        +UMBRALAGUA valor
+    }
+    class Estado {
+        <<enumeración>>
+        NORMAL
+        HUMEDAD_ALTA
+        SUELO_ENCHARCADO
+        SUELO_SECO
+        TEMPERATURA_ALTA
+        TEMPERATURA_CRITICA
+        SIN_AGUA
+        SIN_DATOS
+        FALLA_SENSOR_TEMP
+    }
+    class Nivel {
+        <<enumeración>>
+        BAJA
+        NORMAL
+        ALTA
+        DESCONOCIDA
+        NO_USADO
+    }
+    Arduino ..> Telemetria : emite
+    Arduino ..> Configuracion : emite
+    Arduino ..> Respuesta : responde
+    Aplicacion ..> Comando : envía
+    Arduino ..> Comando : ejecuta
+    Telemetria --> Estado
+    Telemetria --> Nivel
+""",
+
+    "uml-clases": """classDiagram
+    direction TB
+    class Invernadero {
+        +idInvernadero : texto
+        +nombre : texto
+        +sistemaActivo : bool
+        +asignarControlador(c)
+        +iniciarSistema()
+        +monitorear(ahora)
+    }
+    class ControladorArduino {
+        +puertoSerie : unsigned long
+        +frecuenciaMuestreo : unsigned long
+        +estadoActual : EstadoSistema
+        +inicializar()
+        +ciclo(ahora)
+        +leerSensores(ahora)
+        +ejecutarLogica(ahora)
+        +enviarTelemetria(ahora)
+        +enviarAjustes()
+    }
+    class ReglaControl {
+        +evaluarTemperatura(t)
+        +evaluarHumedad(h)
+        +evaluarHumedadSuelo(s, usada)
+        +evaluarNivelAgua(hayAgua, usada)
+        +requiereVentilacion() bool
+        +requiereRiego() bool
+        +hayAlarma() bool
+        +obtenerEstado() EstadoSistema
+    }
+    class LecturaDato {
+        +idLectura : uint16
+        +timestamp : unsigned long
+        +valor : float
+        +unidad : texto
+        +valida : bool
+        +esValida() bool
+        +formatearSalida(salida)
+    }
+    class Ajustes {
+        +tempMax, tempHisteresis, tempCritica : float
+        +humSueloMin, humSueloMax, humHisteresis : float
+        +adcSueloSeco, adcSueloHumedo, adcUmbralAgua : int16
+        +checksum : uint8
+    }
+    class AlmacenAjustes {
+        +deFabrica()$ Ajustes
+        +cargar(a)$ bool
+        +guardar(a)$
+    }
+    class Sensor {
+        <<abstract>>
+        +idPin : uint8
+        +nombre : texto
+        +activo : bool
+        +inicializar()*
+        +obtenerLectura(ahora)*
+        +ultimaLectura() LecturaDato
+    }
+    class SensorTemperatura {
+        +temperatura : float
+        +leerTemperatura(ahora)
+        +sensoresDetectados() uint8
+    }
+    class SensorHumedad {
+        +humedadAlta : bool
+        +leerHumedad(ahora)
+    }
+    class SondaResistiva {
+        <<abstract>>
+        +valorAdc : int
+        +medirAdc() int
+    }
+    class SensorHumedadSuelo {
+        +humedad : float
+    }
+    class SensorNivelAgua {
+        +hayAgua : bool
+    }
+    class Actuador {
+        <<abstract>>
+        +idPin : uint8
+        +estado : bool
+        +inicializar()*
+        +encender()*
+        +apagar()*
+        +actualizar(ahora)
+    }
+    class IndicadorLED {
+        +color : texto
+        +parpadeo : bool
+        +cambiarEstado()
+        +parpadear(periodo, invertido)
+    }
+    class Zumbador {
+        +pasivo : bool
+        +pitar(veces, duracion)
+    }
+    class ActuadorRele {
+        +activoEnBajo : bool
+        +nombre : texto
+    }
+    class BombaAgua {
+        +solicitarPulso(ahora, forzado) bool
+        +segundosUsadosEnHora() unsigned long
+    }
+    class Ventilador
+    class CicloTrabajoBomba {
+        +solicitarPulso(ahora, forzado) bool
+        +actualizar(ahora) bool
+        +msUsadosEnHora() unsigned long
+    }
+    class RelojSoftware {
+        +ajustar(h, m, s, ahora)
+        +segundosDelDia(ahora) unsigned long
+        +estaSincronizado() bool
+    }
+    class PantallaLCD {
+        +inicializar() bool
+        +mostrar(resumen, ahora)
+    }
+    class BotonPulsador {
+        +actualizar(ahora) EventoBoton
+    }
+    Invernadero "1" --> "1" ControladorArduino : gestiona
+    ControladorArduino "1" o-- "4" Sensor : lee de
+    ControladorArduino "1" o-- "6" Actuador : controla
+    ControladorArduino --> ReglaControl : evalúa con
+    ControladorArduino *-- RelojSoftware
+    ControladorArduino *-- PantallaLCD
+    ControladorArduino o-- BotonPulsador
+    ControladorArduino ..> AlmacenAjustes : usa
+    AlmacenAjustes ..> Ajustes : guarda
+    ReglaControl --> Ajustes : consulta
+    ReglaControl ..> LecturaDato : usa
+    Sensor ..> LecturaDato : produce
+    Sensor <|-- SensorTemperatura
+    Sensor <|-- SensorHumedad
+    Sensor <|-- SondaResistiva
+    SondaResistiva <|-- SensorHumedadSuelo
+    SondaResistiva <|-- SensorNivelAgua
+    Actuador <|-- IndicadorLED
+    Actuador <|-- Zumbador
+    Actuador <|-- ActuadorRele
+    ActuadorRele <|-- BombaAgua
+    ActuadorRele <|-- Ventilador
+    BombaAgua *-- CicloTrabajoBomba
+""",
+}
+
 CONFIG_MERMAID = {
     "theme": "base",
+    "look": "neo",
+    "layout": "elk",
     "themeVariables": {
-        "primaryColor": "#E8F3EC", "primaryBorderColor": "#2E7A4C", "primaryTextColor": "#1E2D24",
-        "lineColor": "#4D5F54", "secondaryColor": "#E3F0FA", "tertiaryColor": "#F8FBF9",
-        "clusterBkg": "#F8FBF9", "clusterBorder": "#9DB5A8",
-        "fontFamily": "Segoe UI, Roboto, Arial, sans-serif", "fontSize": "15px",
-        "noteBkgColor": "#FFF3E0", "noteBorderColor": "#B9790A", "actorBkg": "#E8F3EC", "actorBorder": "#2E7A4C",
+        "primaryColor": "#E3F2E8", "primaryBorderColor": "#2E7A4C", "primaryTextColor": "#1E2D24",
+        "lineColor": "#55665B", "secondaryColor": "#E3F0FA", "tertiaryColor": "#F6F9F7",
+        "clusterBkg": "#F6F9F7", "clusterBorder": "#A9BDB2", "edgeLabelBackground": "#FFFFFF",
+        "fontFamily": "Segoe UI, Roboto, Helvetica, Arial, sans-serif", "fontSize": "15px",
+        "noteBkgColor": "#FFF1DC", "noteBorderColor": "#B9790A", "noteTextColor": "#4A3305",
+        "actorBkg": "#E3F2E8", "actorBorder": "#2E7A4C", "actorTextColor": "#173B26",
+        "signalColor": "#55665B", "signalTextColor": "#1E2D24", "sequenceNumberColor": "#FFFFFF",
+        "labelBoxBkgColor": "#E3F0FA", "labelBoxBorderColor": "#2370AE", "loopTextColor": "#16324A",
+        "classText": "#1E2D24",
     },
-    "flowchart": {"htmlLabels": True, "curve": "basis"},
+    "flowchart": {"htmlLabels": True, "curve": "basis", "nodeSpacing": 38, "rankSpacing": 52, "padding": 14},
+    "sequence": {"mirrorActors": False, "showSequenceNumbers": True, "actorMargin": 110, "messageMargin": 34},
+    "class": {"htmlLabels": True},
+    "state": {"nodeSpacing": 40},
 }
 FUENTE = "fontFamily=Segoe UI;fontSize=14;fontColor=#1E2D24;"
 RELLENO, BORDE = "#E8F3EC", "#2E7A4C"
@@ -65,13 +570,14 @@ JS_MEDIR = r"""
 """
 
 
-def renderizar(mmd: Path, chrome: str):
+def renderizar(nombre: str, texto: str, chrome: str):
     with tempfile.TemporaryDirectory() as tmp:
         cfg = Path(tmp) / "c.json"; cfg.write_text(json.dumps(CONFIG_MERMAID))
         pup = Path(tmp) / "p.json"; pup.write_text(json.dumps({"executablePath": chrome, "args": ["--no-sandbox"]}))
+        fuente = Path(tmp) / f"{nombre}.mmd"; fuente.write_text(texto, encoding="utf-8")
         for ext, extra in (("svg", []), ("png", ["-s", "2"])):
-            subprocess.run(["mmdc", "-q", "-p", str(pup), "-c", str(cfg), "-b", "#FFFFFF", "-i", str(mmd),
-                            "-o", str(mmd.with_suffix("." + ext)), *extra], check=True)
+            subprocess.run(["mmdc", "-q", "-p", str(pup), "-c", str(cfg), "-b", "#FFFFFF", "-i", str(fuente),
+                            "-o", str(DIR / f"{nombre}.{ext}"), *extra], check=True)
 
 
 def medir(svg_path: Path, navegador):
@@ -84,7 +590,7 @@ def medir(svg_path: Path, navegador):
     return datos
 
 
-# --------------------------- Lectura del .mmd ---------------------------
+# ----------------------- Lectura de la definición Mermaid -----------------------
 def estilos_classdef(texto):
     defs = {}
     for nombre, cuerpo in re.findall(r"^\s*classDef\s+(\w+)\s+(.+)$", texto, re.M):
@@ -289,20 +795,23 @@ def main():
     args = ap.parse_args()
     with sync_playwright() as p:
         navegador = p.chromium.launch(executable_path=args.chrome, args=["--no-sandbox"])
-        for mmd in sorted(DIR.glob("*.mmd")):
-            renderizar(mmd, args.chrome)
-            texto = mmd.read_text(encoding="utf-8")
-            svg = mmd.with_suffix(".svg")
+        DIR.mkdir(parents=True, exist_ok=True)
+        for viejo in DIR.glob("*"):
+            if viejo.suffix in (".svg", ".png", ".drawio", ".mmd"):
+                viejo.unlink()
+        for nombre, texto in DIAGRAMAS.items():
+            renderizar(nombre, texto, args.chrome)
+            svg = DIR / f"{nombre}.svg"
             medidas = medir(svg, navegador)
-            tipo = texto.lstrip().split(None, 1)[0]
+            tipo = re.sub(r"^---\n.*?\n---\n", "", texto.lstrip(), flags=re.S).split(None, 1)[0]
             if tipo in ("flowchart", "graph"):
-                xml = flowchart_a_drawio(texto, medidas, mmd.stem)
+                xml = flowchart_a_drawio(texto, medidas, nombre)
             elif tipo == "classDiagram":
-                xml = clases_a_drawio(texto, medidas, mmd.stem)
+                xml = clases_a_drawio(texto, medidas, nombre)
             else:
-                xml = imagen_a_drawio(texto, svg, medidas, mmd.stem)
-            mmd.with_suffix(".drawio").write_text(xml, encoding="utf-8")
-            print(f"{mmd.name}: svg, png y drawio ({tipo})")
+                xml = imagen_a_drawio(texto, svg, medidas, nombre)
+            (DIR / f"{nombre}.drawio").write_text(xml, encoding="utf-8")
+            print(f"{nombre}: svg, png y drawio ({tipo})")
         navegador.close()
 
 

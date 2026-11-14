@@ -1,5 +1,5 @@
 # Versión para Tinkercad
 
-`invernadero_tinkercad.ino` es el firmware adaptado a las piezas que existen en Tinkercad Circuits (TMP36, potenciómetro, sensor de suelo, relés con transistor, motores DC, LCD I2C).
+`invernadero_tinkercad.ino` es el control del invernadero adaptado a las piezas de Tinkercad Circuits: TMP36, interruptores deslizantes para el contacto del módulo HR202 y para el tanque, sensor de humedad del suelo, relés con transistor, motores DC, piezo y LCD I2C.
 
-Piezas, cableado y pruebas: [docs/tinkercad.md](../docs/tinkercad.md).
+Circuito, piezas equivalentes y diferencias con el equipo real: [docs/tinkercad.md](../docs/tinkercad.md).

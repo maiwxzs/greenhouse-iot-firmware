@@ -1,12 +1,13 @@
-# Compila el firmware para el Arduino Uno y corre las pruebas unitarias
-# en cada push o pull request. El resultado se ve en la pestaña "Actions".
-name: Firmware
+# Corre las pruebas unitarias, compila el firmware para el Arduino Uno y
+# construye la aplicación en cada push o pull request. El resultado se ve
+# en la pestaña "Actions".
+name: Firmware y aplicación
 
 on:
   push:
-    paths: ["firmware/**", ".github/workflows/firmware.yml"]
+    paths: ["firmware/**", "app/**", ".github/workflows/firmware.yml"]
   pull_request:
-    paths: ["firmware/**", ".github/workflows/firmware.yml"]
+    paths: ["firmware/**", "app/**", ".github/workflows/firmware.yml"]
   workflow_dispatch:
 
 jobs:
@@ -46,3 +47,26 @@ jobs:
         run: |
           echo "### Memoria del Arduino Uno" >> "$GITHUB_STEP_SUMMARY"
           pio run -e uno -t size 2>&1 | grep -E "RAM:|Flash:" | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY"
+
+  aplicacion:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalar dependencias
+        run: npm install --no-audit --no-fund
+
+      - name: Construir la aplicación
+        run: npm run build
+
+      - name: Tamaño de la aplicación
+        run: |
+          echo "### Aplicación" >> "$GITHUB_STEP_SUMMARY"
+          du -h dist/assets/* | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY"

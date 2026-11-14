@@ -8,7 +8,7 @@
 //
 //    Sensor (abstracta)
 //      ├── SensorTemperatura        DS18B20 sumergible (1-Wire)
-//      ├── SensorHumedad            Módulo HR202 (humedad del aire)
+//      ├── SensorHumedad            Módulo HR202 con relé (humedad del aire, contacto)
 //      └── SondaResistiva (abstracta, sondas caseras con pull-up interno)
 //            ├── SensorHumedadSuelo dos clavos en la maceta
 //            └── SensorNivelAgua    dos cables en el tanque
@@ -17,8 +17,7 @@
 //      ├── Zumbador
 //      └── ActuadorRele
 //            ├── BombaAgua          mini bomba sumergible (aspersor)
-//            ├── Ventilador         mini ventilador 5V
-//            └── LuzCultivo         lámpara en el tercer relé
+//            └── Ventilador         mini ventilador 5V
 //    BotonPulsador, PantallaLCD, AlmacenAjustes
 //    ControladorArduino, Invernadero
 //
@@ -38,7 +37,7 @@
 #include <LiquidCrystal_I2C.h>
 #endif
 
-#define FIRMWARE_VERSION "2.0.0"
+#define FIRMWARE_VERSION "3.0.0"
 
 // ---------------------------------------------------------------------
 //  Utilidades de impresión
@@ -59,7 +58,6 @@ inline const __FlashStringHelper* textoEstado(EstadoSistema e) {
     switch (e) {
         case ESTADO_HUMEDAD_ALTA:             return F("HUMEDAD_ALTA");
         case ESTADO_SUELO_ENCHARCADO:         return F("SUELO_ENCHARCADO");
-        case ESTADO_HUMEDAD_BAJA:             return F("HUMEDAD_BAJA");
         case ESTADO_SUELO_SECO:               return F("SUELO_SECO");
         case ESTADO_TEMPERATURA_ALTA:         return F("TEMPERATURA_ALTA");
         case ESTADO_TEMPERATURA_CRITICA:      return F("TEMPERATURA_CRITICA");
@@ -93,19 +91,12 @@ public:
         a.tempMax        = FABRICA_TEMP_MAX_C;
         a.tempHisteresis = FABRICA_TEMP_HISTERESIS_C;
         a.tempCritica    = FABRICA_TEMP_CRITICA_C;
-        a.humAireMin     = FABRICA_HUM_AIRE_MIN;
-        a.humAireMax     = FABRICA_HUM_AIRE_MAX;
         a.humSueloMin    = FABRICA_HUM_SUELO_MIN;
         a.humSueloMax    = FABRICA_HUM_SUELO_MAX;
         a.humHisteresis  = FABRICA_HISTERESIS_PCT;
-        a.adcAireSeco    = FABRICA_ADC_AIRE_SECO;
-        a.adcAireHumedo  = FABRICA_ADC_AIRE_HUMEDO;
         a.adcSueloSeco   = FABRICA_ADC_SUELO_SECO;
         a.adcSueloHumedo = FABRICA_ADC_SUELO_HUMEDO;
         a.adcUmbralAgua  = FABRICA_ADC_UMBRAL_AGUA;
-        a.luzHoraInicio  = FABRICA_LUZ_HORA_INICIO;
-        a.luzHoraFin     = FABRICA_LUZ_HORA_FIN;
-        a.modoLuz        = LUZ_AUTO;
         sellarAjustes(a);
         return a;
     }
@@ -207,46 +198,40 @@ private:
 };
 
 // ---------------------------------------------------------------------
-//  SensorHumedad: módulo HR202 + LM393 (humedad relativa del AIRE)
+//  SensorHumedad: módulo HR202 con relé (humedad relativa del AIRE)
+//  El módulo compara la humedad con el umbral de su potenciómetro y
+//  conmuta su relé. El Arduino lee ese relé como contacto seco:
+//  COM a GND y NO al pin, con pull-up interno. Contacto cerrado = alta.
+//  Un cambio se acepta tras varias lecturas iguales (antirrebote).
 // ---------------------------------------------------------------------
 class SensorHumedad : public Sensor {
 public:
-    uint8_t pinAnalogico;
-    float humedad;        // 0-100 %
-    bool superaUmbral;    // estado de DO
-    int valorAdc;         // lectura cruda de AO, -1 si no se usa
+    bool humedadAlta;     // estado confirmado
 
-    SensorHumedad(uint8_t pinDigital, uint8_t pinAnalog, const Ajustes& ajustes)
-        : Sensor(pinDigital, "HR202"), pinAnalogico(pinAnalog),
-          humedad(0.0f), superaUmbral(false), valorAdc(-1), cfg(ajustes) {}
+    explicit SensorHumedad(uint8_t pin)
+        : Sensor(pin, "HR202"), humedadAlta(false), candidato(false), repeticiones(0) {}
 
-    void inicializar() override { pinMode(idPin, INPUT); }
+    void inicializar() override { pinMode(idPin, INPUT_PULLUP); }
 
     void obtenerLectura(unsigned long ahora) override { leerHumedad(ahora); }
 
     void leerHumedad(unsigned long ahora) {
         const int d = digitalRead(idPin);
-        superaUmbral = HR202_DO_ACTIVO_EN_BAJO ? (d == LOW) : (d == HIGH);
-        if (HR202_USAR_SALIDA_ANALOGICA) {
-            valorAdc = medirAdc();
-            humedad = adcAPorcentaje(valorAdc, cfg.adcAireSeco, cfg.adcAireHumedo);
+        const bool cerrado = HUMEDAD_CONTACTO_EN_BAJO ? (d == LOW) : (d == HIGH);
+        if (contadorLecturas == 0) {
+            humedadAlta = cerrado;                    // primera lectura: se acepta tal cual
+        } else if (cerrado == humedadAlta) {
+            repeticiones = 0;
         } else {
-            valorAdc = -1;
-            humedad = superaUmbral ? 100.0f : 0.0f;   // solo DO: arriba o abajo del potenciómetro
+            if (cerrado != candidato) { candidato = cerrado; repeticiones = 0; }
+            if (++repeticiones >= HUMEDAD_MUESTRAS_ESTABLES) { humedadAlta = cerrado; repeticiones = 0; }
         }
-        registrarLectura(ahora, humedad, "%", true);
-    }
-
-    float porcentajeHumedad() const { return humedad; }
-
-    int medirAdc() {
-        long suma = 0;
-        for (uint8_t i = 0; i < 8; i++) suma += analogRead(pinAnalogico);
-        return (int)(suma / 8);
+        registrarLectura(ahora, humedadAlta ? 1.0f : 0.0f, "", true);
     }
 
 private:
-    const Ajustes& cfg;
+    bool candidato;
+    uint8_t repeticiones;
 };
 
 // ---------------------------------------------------------------------
@@ -468,11 +453,6 @@ public:
     Ventilador(uint8_t pin, bool activoBajo) : ActuadorRele(pin, activoBajo, "Ventilador") {}
 };
 
-class LuzCultivo : public ActuadorRele {
-public:
-    LuzCultivo(uint8_t pin, bool activoBajo) : ActuadorRele(pin, activoBajo, "Luz") {}
-};
-
 // ---------------------------------------------------------------------
 //  BombaAgua: riego por pulsos respetando el ciclo de trabajo
 // ---------------------------------------------------------------------
@@ -565,7 +545,7 @@ private:
 struct ResumenEstado {
     bool tempValida;
     float temperatura;
-    float humAire;
+    bool aireAlta;
     bool sueloUsado;
     bool sueloValido;
     float humSuelo;
@@ -574,7 +554,6 @@ struct ResumenEstado {
     const __FlashStringHelper* estado;
     bool ventilador;
     bool bomba;
-    bool luz;
     uint8_t hora;
     uint8_t minuto;
 };
@@ -621,15 +600,14 @@ public:
         }
         size_t n;
         if (pagina == 0) {
-            // T:24.5C  HA:55%
+            // T:24.5C  HR:ALTA
             // S:48% Agua:OK
             lcd->setCursor(0, 0);
             n = lcd->print(F("T:"));
             if (r.tempValida) { n += lcd->print(r.temperatura, 1); n += lcd->print('C'); }
             else              { n += lcd->print(F("--.-C")); }
-            n += lcd->print(F(" HA:"));
-            n += lcd->print((int)(r.humAire + 0.5f));
-            n += lcd->print('%');
+            n += lcd->print(F("  HR:"));
+            n += lcd->print(r.aireAlta ? F("ALTA") : F("OK"));
             rellenar(n);
             lcd->setCursor(0, 1);
             n = lcd->print(F("S:"));
@@ -651,10 +629,9 @@ public:
             }
             rellenar(n);
             lcd->setCursor(0, 1);
-            n = lcd->print('V'); n += lcd->print(r.ventilador ? '1' : '0');
-            n += lcd->print(F(" B")); n += lcd->print(r.bomba ? '1' : '0');
-            n += lcd->print(F(" L")); n += lcd->print(r.luz ? '1' : '0');
-            n += lcd->print(F("   "));
+            n = lcd->print(F("V:")); n += lcd->print(r.ventilador ? '1' : '0');
+            n += lcd->print(F(" B:")); n += lcd->print(r.bomba ? '1' : '0');
+            n += lcd->print(F("    "));
             if (r.hora < 10) n += lcd->print('0');
             n += lcd->print(r.hora);
             n += lcd->print(':');
@@ -688,7 +665,6 @@ struct Componentes {
     SensorNivelAgua&    nivelAgua;
     BombaAgua&          bomba;
     Ventilador&         ventilador;
-    LuzCultivo&         luz;
     IndicadorLED&       ledHumedadBaja;
     IndicadorLED&       ledHumedadAlta;
     IndicadorLED&       ledEstado;
@@ -715,7 +691,7 @@ public:
         : puertoSerie(puerto), frecuenciaMuestreo(freq), estadoActual(ESTADO_SIN_DATOS),
           c(componentes), cfg(ajustes), regla(reglaControl),
           numSensores(0), numActuadores(0), ultimoMuestreo(0),
-          deseoVentilador(false), deseoLuz(false), alarmaActiva(false),
+          deseoVentilador(false), alarmaActiva(false),
           ultimaAlarma(0), silencioHasta(0), silenciado(false), largoLinea(0), lineaDescartada(false) {
         agregarSensor(&c.temperatura);
         agregarSensor(&c.humedadAire);
@@ -723,7 +699,6 @@ public:
         agregarSensor(&c.nivelAgua);
         agregarActuador(&c.bomba);
         agregarActuador(&c.ventilador);
-        agregarActuador(&c.luz);
         agregarActuador(&c.ledHumedadBaja);
         agregarActuador(&c.ledHumedadAlta);
         agregarActuador(&c.ledEstado);
@@ -805,14 +780,13 @@ public:
         estadoActual = regla.obtenerEstado();
 
         deseoVentilador = regla.requiereVentilacion();
-        deseoLuz = USAR_LUZ && luzDeseada(ahora);
 
         // Bomba: pulsos mientras haga falta. Un riego manual termina su pulso,
         // salvo que se acabe el agua.
         if (regla.requiereRiego()) {
             if (!c.bomba.estado) {
-                // Con alimentación solo-Arduino, primero se apagan las otras cargas.
-                if (ALIMENTACION_SOLO_ARDUINO) { c.ventilador.apagar(); c.luz.apagar(); }
+                // Con alimentación solo-Arduino, primero se apaga el ventilador.
+                if (ALIMENTACION_SOLO_ARDUINO) c.ventilador.apagar();
                 c.bomba.solicitarPulso(ahora);
             }
         } else if (c.bomba.estado && (!c.bomba.esManual() || regla.riegoBloqueadoPorTanque())) {
@@ -835,10 +809,7 @@ public:
         Serial.print(F("\",\"hora_sync\":"));             Serial.print(reloj.estaSincronizado() ? 1 : 0);
         Serial.print(F(",\"temp_c\":"));
         if (t.esValida()) Serial.print(t.valor, 2); else Serial.print(F("null"));
-        Serial.print(F(",\"hum_aire\":"));                Serial.print(c.humedadAire.porcentajeHumedad(), 1);
-        Serial.print(F(",\"adc_aire\":"));
-        if (c.humedadAire.valorAdc >= 0) Serial.print(c.humedadAire.valorAdc); else Serial.print(F("null"));
-        Serial.print(F(",\"do_aire\":"));                 Serial.print(c.humedadAire.superaUmbral ? 1 : 0);
+        Serial.print(F(",\"aire_alta\":"));               Serial.print(c.humedadAire.humedadAlta ? 1 : 0);
         Serial.print(F(",\"hum_suelo\":"));
         if (USAR_SONDA_SUELO && s.esValida()) Serial.print(s.valor, 1); else Serial.print(F("null"));
         Serial.print(F(",\"adc_suelo\":"));
@@ -852,7 +823,6 @@ public:
         Serial.print(F("\",\"suelo\":\""));               Serial.print(textoNivel(regla.obtenerEstadoSuelo()));
         Serial.print(F("\",\"ventilador\":"));            Serial.print(c.ventilador.estado ? 1 : 0);
         Serial.print(F(",\"bomba\":"));                   Serial.print(c.bomba.estado ? 1 : 0);
-        Serial.print(F(",\"luz\":"));                     Serial.print(c.luz.estado ? 1 : 0);
         Serial.print(F(",\"alarma\":"));                  Serial.print(alarmaActiva ? (silenciado ? 2 : 1) : 0);
         Serial.print(F(",\"bomba_s_hora\":"));            Serial.print(c.bomba.segundosUsadosEnHora());
         Serial.println('}');
@@ -863,24 +833,15 @@ public:
         Serial.print(F(",\"temp_max\":"));       Serial.print(cfg.tempMax, 1);
         Serial.print(F(",\"temp_hist\":"));      Serial.print(cfg.tempHisteresis, 1);
         Serial.print(F(",\"temp_crit\":"));      Serial.print(cfg.tempCritica, 1);
-        Serial.print(F(",\"hum_min\":"));        Serial.print(cfg.humAireMin, 1);
-        Serial.print(F(",\"hum_max\":"));        Serial.print(cfg.humAireMax, 1);
         Serial.print(F(",\"suelo_min\":"));      Serial.print(cfg.humSueloMin, 1);
         Serial.print(F(",\"suelo_max\":"));      Serial.print(cfg.humSueloMax, 1);
         Serial.print(F(",\"hist\":"));           Serial.print(cfg.humHisteresis, 1);
-        Serial.print(F(",\"adc_aire_seco\":"));  Serial.print(cfg.adcAireSeco);
-        Serial.print(F(",\"adc_aire_hum\":"));   Serial.print(cfg.adcAireHumedo);
         Serial.print(F(",\"adc_suelo_seco\":")); Serial.print(cfg.adcSueloSeco);
         Serial.print(F(",\"adc_suelo_hum\":"));  Serial.print(cfg.adcSueloHumedo);
         Serial.print(F(",\"umbral_agua\":"));    Serial.print(cfg.adcUmbralAgua);
-        Serial.print(F(",\"luz_ini\":"));        Serial.print(cfg.luzHoraInicio);
-        Serial.print(F(",\"luz_fin\":"));        Serial.print(cfg.luzHoraFin);
-        Serial.print(F(",\"luz_modo\":\""));
-        Serial.print(cfg.modoLuz == LUZ_SIEMPRE_ON ? F("ON") : cfg.modoLuz == LUZ_SIEMPRE_OFF ? F("OFF") : F("AUTO"));
-        Serial.print(F("\",\"solo_arduino\":")); Serial.print(ALIMENTACION_SOLO_ARDUINO ? 1 : 0);
+        Serial.print(F(",\"solo_arduino\":")); Serial.print(ALIMENTACION_SOLO_ARDUINO ? 1 : 0);
         Serial.print(F(",\"sonda_suelo\":"));    Serial.print(USAR_SONDA_SUELO ? 1 : 0);
         Serial.print(F(",\"sonda_agua\":"));     Serial.print(USAR_SONDA_NIVEL_AGUA ? 1 : 0);
-        Serial.print(F(",\"usa_luz\":"));        Serial.print(USAR_LUZ ? 1 : 0);
         Serial.print(F(",\"lcd\":"));
 #if USAR_LCD
         Serial.print(pantalla.disponible() ? 1 : 0);
@@ -904,7 +865,6 @@ private:
     uint8_t numActuadores;
     unsigned long ultimoMuestreo;
     bool deseoVentilador;
-    bool deseoLuz;
     bool alarmaActiva;
     unsigned long ultimaAlarma;
     unsigned long silencioHasta;
@@ -913,18 +873,10 @@ private:
     uint8_t largoLinea;
     bool lineaDescartada;
 
-    bool luzDeseada(unsigned long ahora) const {
-        if (cfg.modoLuz == LUZ_SIEMPRE_ON)  return true;
-        if (cfg.modoLuz == LUZ_SIEMPRE_OFF) return false;
-        return luzEnHorario(reloj.segundosDelDia(ahora), cfg.luzHoraInicio, cfg.luzHoraFin);
-    }
-
     // Respeta el límite de energía cada vez que cambia algo.
     void aplicarCargas() {
-        const CargasPermitidas p = repartirEnergia(c.bomba.estado, deseoVentilador, deseoLuz,
-                                                   ALIMENTACION_SOLO_ARDUINO);
+        const CargasPermitidas p = repartirEnergia(c.bomba.estado, deseoVentilador, ALIMENTACION_SOLO_ARDUINO);
         if (c.ventilador.estado != p.ventilador) c.ventilador.fijar(p.ventilador);
-        if (c.luz.estado != p.luz)               c.luz.fijar(p.luz);
     }
 
     void actualizarIndicadores() {
@@ -938,8 +890,8 @@ private:
             c.ledHumedadAlta.apagar();
             return;
         }
-        const bool baja = regla.obtenerEstadoAire() == NIVEL_BAJO || regla.obtenerEstadoSuelo() == NIVEL_BAJO;
-        const bool alta = regla.obtenerEstadoAire() == NIVEL_ALTO;
+        const bool baja = regla.obtenerEstadoSuelo() == NIVEL_BAJO;   // suelo seco
+        const bool alta = regla.obtenerEstadoAire() == NIVEL_ALTO;    // aire húmedo
         c.ledHumedadBaja.fijar(baja);
         c.ledHumedadAlta.fijar(alta);
     }
@@ -969,7 +921,7 @@ private:
             if (USAR_ZUMBADOR) c.zumbador.pitar(2, 300);
             return;
         }
-        if (ALIMENTACION_SOLO_ARDUINO) { c.ventilador.apagar(); c.luz.apagar(); }
+        if (ALIMENTACION_SOLO_ARDUINO) c.ventilador.apagar();
         if (c.bomba.solicitarPulso(ahora, true)) {
             Serial.println(F("{\"tipo\":\"ok\",\"cmd\":\"RIEGO\"}"));
             if (USAR_ZUMBADOR) c.zumbador.pitar(1, 60);
@@ -1003,7 +955,7 @@ private:
         const LecturaDato s = c.humedadSuelo.ultimaLectura();
         r.tempValida  = t.esValida();
         r.temperatura = t.valor;
-        r.humAire     = c.humedadAire.porcentajeHumedad();
+        r.aireAlta    = c.humedadAire.humedadAlta;
         r.sueloUsado  = USAR_SONDA_SUELO;
         r.sueloValido = s.esValida();
         r.humSuelo    = s.valor;
@@ -1012,7 +964,6 @@ private:
         r.estado      = textoEstado(estadoActual);
         r.ventilador  = c.ventilador.estado;
         r.bomba       = c.bomba.estado;
-        r.luz         = c.luz.estado;
         r.hora        = reloj.hora(ahora);
         r.minuto      = reloj.minuto(ahora);
         pantalla.mostrar(r, ahora);
@@ -1094,22 +1045,6 @@ private:
             return;
         }
 
-        if (!strcmp(n, "LUZ")) {
-            if (!strcmp(cmd.texto, "ON"))        nuevo.modoLuz = LUZ_SIEMPRE_ON;
-            else if (!strcmp(cmd.texto, "OFF"))  nuevo.modoLuz = LUZ_SIEMPRE_OFF;
-            else if (!strcmp(cmd.texto, "AUTO")) nuevo.modoLuz = LUZ_AUTO;
-            else if (cmd.cantidadNumeros >= 2 && v >= 0 && v <= 23 && cmd.numeros[1] >= 0 && cmd.numeros[1] <= 23) {
-                nuevo.luzHoraInicio = (uint8_t)v;
-                nuevo.luzHoraFin = (uint8_t)cmd.numeros[1];
-                nuevo.modoLuz = LUZ_AUTO;
-            } else {
-                responderError(F("Uso: LUZ ON | LUZ OFF | LUZ AUTO | LUZ inicio fin"));
-                return;
-            }
-            confirmarCambio(nuevo, n);
-            return;
-        }
-
         if (!strcmp(n, "CAL")) { calibrar(cmd.texto, nuevo); return; }
 
         // Comandos de un número: NOMBRE valor
@@ -1117,8 +1052,6 @@ private:
         if      (!strcmp(n, "TEMP"))      destino = &nuevo.tempMax;
         else if (!strcmp(n, "TEMPCRIT"))  destino = &nuevo.tempCritica;
         else if (!strcmp(n, "TEMPHIST"))  destino = &nuevo.tempHisteresis;
-        else if (!strcmp(n, "HUMMIN"))    destino = &nuevo.humAireMin;
-        else if (!strcmp(n, "HUMMAX"))    destino = &nuevo.humAireMax;
         else if (!strcmp(n, "SUELOMIN"))  destino = &nuevo.humSueloMin;
         else if (!strcmp(n, "SUELOMAX"))  destino = &nuevo.humSueloMax;
         else if (!strcmp(n, "HIST"))      destino = &nuevo.humHisteresis;
@@ -1138,39 +1071,24 @@ private:
         responderError(F("Comando desconocido. Escribe AYUDA"));
     }
 
-    // CAL AIRESECO | AIREHUMEDO | SUELOSECO | SUELOHUMEDO | TANQUE
+    // CAL SUELOSECO | SUELOHUMEDO | TANQUE
     void calibrar(const char* que, Ajustes& nuevo) {
-        if (!strcmp(que, "AIRESECO"))         nuevo.adcAireSeco = (int16_t)c.humedadAire.medirAdc();
-        else if (!strcmp(que, "AIREHUMEDO"))  nuevo.adcAireHumedo = (int16_t)c.humedadAire.medirAdc();
-        else if (!strcmp(que, "SUELOSECO"))   nuevo.adcSueloSeco = (int16_t)c.humedadSuelo.medirAdc();
+        if (!strcmp(que, "SUELOSECO"))        nuevo.adcSueloSeco = (int16_t)c.humedadSuelo.medirAdc();
         else if (!strcmp(que, "SUELOHUMEDO")) nuevo.adcSueloHumedo = (int16_t)c.humedadSuelo.medirAdc();
         else if (!strcmp(que, "TANQUE")) {
             // Con los dos cables DENTRO del agua: el umbral queda a mitad de camino
             // entre la lectura con agua y la lectura al aire (1023).
             nuevo.adcUmbralAgua = (int16_t)((c.nivelAgua.medirAdc() + 1023) / 2);
         } else {
-            responderError(F("Uso: CAL AIRESECO|AIREHUMEDO|SUELOSECO|SUELOHUMEDO|TANQUE"));
+            responderError(F("Uso: CAL SUELOSECO|SUELOHUMEDO|TANQUE"));
             return;
         }
         confirmarCambio(nuevo, "CAL");
     }
 
+    // Referencia completa en la aplicación de monitoreo y en docs/protocolo-serie.md
     void imprimirAyuda() {
-        Serial.println(F("# Comandos (mayusculas o minusculas):"));
-        Serial.println(F("#  ESTADO              ver ajustes actuales"));
-        Serial.println(F("#  TEMP 30             temperatura para ventilar (C)"));
-        Serial.println(F("#  TEMPCRIT 35         temperatura de alarma (C)"));
-        Serial.println(F("#  TEMPHIST 2          histeresis de temperatura (C)"));
-        Serial.println(F("#  HUMMIN 40 / HUMMAX 80   humedad del aire baja / alta (%)"));
-        Serial.println(F("#  SUELOMIN 30 / SUELOMAX 85  suelo seco / encharcado (%)"));
-        Serial.println(F("#  HIST 5              histeresis de humedad (%)"));
-        Serial.println(F("#  LUZ 6 18 | LUZ ON | LUZ OFF | LUZ AUTO"));
-        Serial.println(F("#  HORA 14:30          poner el reloj en hora"));
-        Serial.println(F("#  RIEGO               riego manual (un pulso)"));
-        Serial.println(F("#  SILENCIO            silenciar la alarma 10 min"));
-        Serial.println(F("#  CAL AIRESECO | CAL AIREHUMEDO | CAL SUELOSECO | CAL SUELOHUMEDO | CAL TANQUE"));
-        Serial.println(F("#  UMBRALAGUA 700      umbral de la sonda del tanque (ADC)"));
-        Serial.println(F("#  FABRICA             volver a los valores de fabrica"));
+        Serial.println(F("# ESTADO TEMP TEMPCRIT TEMPHIST SUELOMIN SUELOMAX HIST HORA RIEGO SILENCIO CAL UMBRALAGUA FABRICA"));
     }
 };
 
