@@ -1,0 +1,10 @@
+stateDiagram-v2
+    direction LR
+    [*] --> NORMAL
+    NORMAL --> BAJA: valor menor que el mínimo
+    BAJA --> NORMAL: valor mayor o igual que mínimo + histéresis
+    NORMAL --> ALTA: valor mayor que el máximo
+    ALTA --> NORMAL: valor menor o igual que máximo − histéresis
+    BAJA: BAJA (LED rojo, riego por pulsos)
+    NORMAL: NORMAL (LEDs apagados)
+    ALTA: ALTA (LED azul, ventilador)

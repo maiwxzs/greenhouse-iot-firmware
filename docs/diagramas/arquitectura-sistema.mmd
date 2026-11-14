@@ -1,0 +1,53 @@
+flowchart LR
+    subgraph CAMPO["Sensores en el invernadero"]
+        direction TB
+        DS["DS18B20<br/>temperatura"]
+        HR["HR202<br/>humedad del aire"]
+        SU["Sonda de suelo<br/>dos clavos"]
+        TQ["Sonda del tanque<br/>dos cables"]
+    end
+    subgraph CTRL["Arduino Uno R3"]
+        direction TB
+        FW["Firmware C++ POO<br/>reglas con histéresis"]
+        EE[("EEPROM<br/>ajustes y calibración")]
+    end
+    subgraph ACT["Actuadores por relé"]
+        direction TB
+        BO["Bomba y aspersor"]
+        VE["Ventilador 5V"]
+        LU["Luz de cultivo"]
+    end
+    subgraph LOCAL["Interfaz en el sitio"]
+        direction TB
+        LCD["Pantalla LCD 16x2"]
+        LED["LEDs rojo y azul"]
+        ZU["Zumbador"]
+        BT["Pulsador"]
+    end
+    subgraph PC["Computador con Chrome o Edge"]
+        direction TB
+        DB["Dashboard web<br/>Web Serial"]
+        CSV[("Datos en CSV")]
+    end
+    DS --> FW
+    HR --> FW
+    SU --> FW
+    TQ --> FW
+    FW --> BO
+    FW --> VE
+    FW --> LU
+    FW --> LCD
+    FW --> LED
+    FW --> ZU
+    BT --> FW
+    FW <--> EE
+    FW <-->|"USB serie: JSON y comandos"| DB
+    DB --> CSV
+    classDef sensor fill:#E3F0FA,stroke:#2370AE,color:#1E2D24
+    classDef actuador fill:#FFF3E0,stroke:#B9790A,color:#1E2D24
+    classDef nucleo fill:#E8F3EC,stroke:#2E7A4C,color:#1E2D24
+    classDef interfaz fill:#F3E8F7,stroke:#6A1B9A,color:#1E2D24
+    class DS,HR,SU,TQ sensor
+    class BO,VE,LU actuador
+    class FW,EE nucleo
+    class LCD,LED,ZU,BT,DB,CSV interfaz

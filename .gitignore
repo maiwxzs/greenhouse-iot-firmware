@@ -1,12 +1,27 @@
-# Build & Temp Files
+# PlatformIO y editores
 .pio/
 .vscode/
 .idea/
+
+# Compilación
 *.o
 *.elf
 *.bin
 *.hex
+build/
 
-# OS generated files
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node
+node_modules/
+
+# Sistema operativo
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Datos exportados del dashboard
+invernadero_*.csv

@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invernadero IoT — Panel</title>
+<style>
+  /* Paleta: vidrio de invernadero, musgo, hoja, agua, sol y alarma */
+  :root {
+    --vidrio: #E6EEEB;
+    --panel: #F8FBF9;
+    --musgo: #1E2D24;
+    --musgo-suave: #4D5F54;
+    --linea: #C5D3CC;
+    --hoja: #2E7A4C;
+    --agua: #2370AE;
+    --sol: #B9790A;
+    --alarma: #B3332E;
+    --radio: 6px;
+    --fuente-datos: "Bahnschrift", "DIN Alternate", "Roboto Condensed", "Arial Narrow", system-ui, sans-serif;
+    --fuente: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--vidrio); color: var(--musgo); font: 16px/1.5 var(--fuente); }
+  body { margin: 0; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--agua); outline-offset: 2px; }
+
+  .contenedor { max-width: 1240px; margin: 0 auto; padding: 20px 24px 48px; }
+
+  /* Encabezado */
+  header.barra { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 18px; }
+  header.barra h1 { font: 600 1.35rem/1.2 var(--fuente-datos); margin: 0; letter-spacing: .01em; }
+  header.barra .conexion { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .pastilla { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px;
+              background: var(--panel); border: 1px solid var(--linea); font-size: .9rem; }
+  .pastilla::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--musgo-suave); }
+  .pastilla[data-estado="conectado"]::before { background: var(--hoja); }
+  .pastilla[data-estado="demo"]::before { background: var(--sol); }
+
+  .boton { border: 1px solid var(--musgo); background: var(--musgo); color: #fff; padding: 8px 16px;
+           border-radius: var(--radio); cursor: pointer; }
+  .boton.secundario { background: transparent; color: var(--musgo); }
+  .boton:disabled { opacity: .45; cursor: not-allowed; }
+  .boton.agua { background: var(--agua); border-color: var(--agua); }
+
+  .aviso { background: #FFF6E0; border: 1px solid #E8CF8E; padding: 10px 14px; border-radius: var(--radio); margin-bottom: 16px; }
+  .aviso[hidden] { display: none; }
+
+  /* Escena: el invernadero dibujado es el elemento principal */
+  .escena { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0;
+            background: var(--panel); border: 1px solid var(--linea); border-radius: 10px; overflow: hidden; }
+  .escena .dibujo { background: linear-gradient(#DCE8E3, #EEF4F1); border-right: 1px solid var(--linea); padding: 12px; }
+  .escena svg { width: 100%; height: auto; display: block; }
+  .escena .relato { padding: 26px 28px; display: flex; flex-direction: column; gap: 14px; }
+  .estado-titulo { font: 600 clamp(1.7rem, 3.2vw, 2.5rem)/1.1 var(--fuente-datos); margin: 0; }
+  .estado-titulo[data-tono="alerta"] { color: var(--alarma); }
+  .estado-titulo[data-tono="accion"] { color: var(--agua); }
+  .estado-titulo[data-tono="calor"]  { color: var(--sol); }
+  .estado-pista { margin: 0; color: var(--musgo-suave); max-width: 46ch; }
+  .reloj { font: 500 1.05rem var(--fuente-datos); font-variant-numeric: tabular-nums; color: var(--musgo-suave); }
+  .acciones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; }
+
+  /* Dibujo: estados animados */
+  .aspa { transform-box: fill-box; transform-origin: center; }
+  [data-ventilador="1"] .aspa { animation: girar .6s linear infinite; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  .gotas { opacity: 0; transition: opacity .3s; }
+  [data-bomba="1"] .gotas { opacity: 1; }
+  [data-bomba="1"] .gotas circle { animation: caer 1s linear infinite; }
+  .gotas circle:nth-child(2) { animation-delay: .33s !important; }
+  .gotas circle:nth-child(3) { animation-delay: .66s !important; }
+  @keyframes caer { from { transform: translateY(0); opacity: 1; } to { transform: translateY(46px); opacity: 0; } }
+  .halo { opacity: 0; transition: opacity .4s; }
+  [data-luz="1"] .halo { opacity: 1; }
+  .bombillo { fill: #fff; transition: fill .4s; }
+  [data-luz="1"] .bombillo { fill: #F5C542; }
+  .nivel-agua { transition: height .6s, y .6s; }
+  @media (prefers-reduced-motion: reduce) {
+    [data-ventilador="1"] .aspa, [data-bomba="1"] .gotas circle { animation: none; }
+  }
+
+  /* Lecturas */
+  .lecturas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 18px 0; }
+  .lectura { background: var(--panel); border: 1px solid var(--linea); border-radius: var(--radio); padding: 14px 16px 12px; }
+  .lectura h2 { font: 500 .95rem var(--fuente); margin: 0 0 4px; color: var(--musgo-suave); }
+  .valor { font: 600 2.6rem/1 var(--fuente-datos); font-variant-numeric: tabular-nums; }
+  .valor small { font-size: 1.1rem; font-weight: 500; margin-left: 2px; color: var(--musgo-suave); }
+  .escala { position: relative; height: 8px; border-radius: 4px; background: #DCE5E0; margin: 12px 0 6px; }
+  .escala .rango { position: absolute; top: 0; bottom: 0; background: #BFD9C9; border-radius: 4px; }
+  .escala .marca { position: absolute; top: -4px; width: 3px; height: 16px; border-radius: 2px; background: var(--musgo); transform: translateX(-1px); transition: left .5s; }
+  .detalle { font-size: .85rem; color: var(--musgo-suave); line-height: 1.35; }
+  .lectura[data-tema="temp"] .valor { color: var(--sol); }
+  .lectura[data-tema="aire"] .valor { color: var(--agua); }
+  .lectura[data-tema="suelo"] .valor { color: var(--hoja); }
+  #vTanque { font-size: 2rem; line-height: 1.3; }
+
+  /* Cuerpo */
+  .cuerpo { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 18px; align-items: start; }
+  .bloque { background: var(--panel); border: 1px solid var(--linea); border-radius: var(--radio); padding: 16px 18px; }
+  .bloque + .bloque { margin-top: 18px; }
+  .bloque h2 { font: 600 1.1rem var(--fuente-datos); margin: 0 0 10px; }
+  .bloque p.nota { margin: 0 0 12px; color: var(--musgo-suave); font-size: .92rem; }
+  .cabecera-bloque { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .cabecera-bloque h2 { margin: 0; }
+  .segmentado { display: inline-flex; border: 1px solid var(--linea); border-radius: var(--radio); overflow: hidden; }
+  .segmentado button { border: 0; background: transparent; padding: 4px 12px; cursor: pointer; }
+  .segmentado button[aria-pressed="true"] { background: var(--musgo); color: #fff; }
+
+  canvas.grafica { width: 100%; height: 190px; display: block; }
+  .leyenda { display: flex; gap: 16px; flex-wrap: wrap; font-size: .85rem; color: var(--musgo-suave); margin: 4px 0 14px; }
+  .leyenda span::before { content: ""; display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--c); }
+  .vacio { color: var(--musgo-suave); font-size: .92rem; }
+
+  /* Formularios */
+  .campos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .campos label { display: flex; flex-direction: column; font-size: .88rem; color: var(--musgo-suave); gap: 3px; }
+  .campos input, .campos select { padding: 6px 8px; border: 1px solid var(--linea); border-radius: 5px; background: #fff; color: var(--musgo);
+                                  font-family: var(--fuente-datos); font-size: 1rem; font-variant-numeric: tabular-nums; }
+  fieldset { border: 0; padding: 0; margin: 0 0 14px; }
+  legend { font-weight: 600; margin-bottom: 6px; padding: 0; }
+  .fila-botones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+
+  .pasos { margin: 0; padding-left: 1.2em; }
+  .pasos li { margin-bottom: 10px; }
+  .pasos li > div { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+
+  /* Consola */
+  .consola { background: #17231C; color: #CFE3D6; border-radius: 5px; padding: 10px 12px; height: 220px; overflow: auto;
+             font: .8rem/1.45 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
+  .consola .err { color: #FFB4A8; }
+  .consola .ok { color: #9BE3B4; }
+  .consola .tx { color: #9CC8F0; }
+  .envio { display: flex; gap: 8px; margin-top: 8px; }
+  .envio input { flex: 1; padding: 6px 8px; border: 1px solid var(--linea); border-radius: 5px; font-family: ui-monospace, Consolas, monospace; }
+
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--musgo); color: #fff;
+           padding: 10px 18px; border-radius: 999px; font-size: .95rem; opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .toast.visible { opacity: 1; }
+  .toast.error { background: var(--alarma); }
+
+  @media (max-width: 900px) {
+    .escena { grid-template-columns: 1fr; }
+    .escena .dibujo { border-right: 0; border-bottom: 1px solid var(--linea); }
+    .lecturas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cuerpo { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    .contenedor { padding: 14px; }
+    .valor { font-size: 2.1rem; }
+    .campos { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="contenedor">
+
+  <header class="barra">
+    <h1>Invernadero piloto</h1>
+    <div class="conexion">
+      <span class="pastilla" id="pastilla" data-estado="desconectado" role="status">Sin conexión</span>
+      <button class="boton" id="btnConectar" type="button">Conectar Arduino</button>
+      <button class="boton secundario" id="btnDemo" type="button">Probar sin Arduino</button>
+    </div>
+  </header>
+
+  <p class="aviso" id="avisoNavegador" hidden>
+    Este navegador no puede hablar con el Arduino por USB. Abre este archivo en Google Chrome o Microsoft Edge
+    (en computador). Mientras tanto puedes usar «Probar sin Arduino».
+  </p>
+
+  <section class="escena" aria-label="Estado del invernadero">
+    <div class="dibujo">
+      <svg id="dibujo" viewBox="0 0 520 330" role="img" aria-labelledby="dibujoTitulo"
+           data-ventilador="0" data-bomba="0" data-luz="0">
+        <title id="dibujoTitulo">Dibujo del invernadero con el ventilador, el aspersor, la luz y el tanque</title>
+        <!-- Suelo -->
+        <rect x="0" y="292" width="520" height="38" fill="#C9D8CF"/>
+        <!-- Estructura -->
+        <path d="M60 292 V140 L215 62 L370 140 V292" fill="#F4F9F6" fill-opacity=".7" stroke="#1E2D24" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M60 140 H370" stroke="#1E2D24" stroke-width="1.5" stroke-dasharray="4 5" opacity=".5"/>
+        <path d="M215 62 V140" stroke="#1E2D24" stroke-width="1.5" opacity=".35"/>
+        <!-- Luz de cultivo -->
+        <g transform="translate(215 98)">
+          <circle class="halo" r="46" fill="#F5C542" fill-opacity=".12"/>
+          <circle class="halo" r="30" fill="#F5C542" fill-opacity=".25"/>
+          <line x1="0" y1="-36" x2="0" y2="-12" stroke="#1E2D24" stroke-width="2"/>
+          <path d="M-14 -12 H14 L9 -2 H-9 Z" fill="#1E2D24"/>
+          <circle class="bombillo" cy="6" r="9" stroke="#1E2D24" stroke-width="2"/>
+        </g>
+        <!-- Aspersor: tubo y boquilla -->
+        <path d="M455 262 V40 H130 V128" fill="none" stroke="#2370AE" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M122 128 H138 L134 136 H126 Z" fill="#2370AE"/>
+        <g class="gotas" fill="#2370AE">
+          <circle cx="124" cy="142" r="3"/>
+          <circle cx="130" cy="146" r="3"/>
+          <circle cx="136" cy="142" r="3"/>
+        </g>
+        <!-- Maceta y planta -->
+        <path d="M100 292 L108 236 H172 L180 292 Z" fill="#9C6B4A" stroke="#1E2D24" stroke-width="2" stroke-linejoin="round"/>
+        <rect x="104" y="230" width="72" height="9" rx="2" fill="#7F563B" stroke="#1E2D24" stroke-width="2"/>
+        <path d="M140 230 C140 205 140 190 141 170" stroke="#2E7A4C" stroke-width="3" fill="none"/>
+        <path d="M140 210 C122 206 112 192 112 180 C128 182 138 194 140 210 Z" fill="#2E7A4C"/>
+        <path d="M141 196 C158 190 168 176 168 164 C152 168 143 180 141 196 Z" fill="#3E9660"/>
+        <path d="M141 176 C134 164 135 152 141 144 C147 152 148 164 141 176 Z" fill="#2E7A4C"/>
+        <!-- Sonda de suelo -->
+        <line x1="160" y1="222" x2="160" y2="262" stroke="#6B7A71" stroke-width="2"/>
+        <line x1="166" y1="222" x2="166" y2="262" stroke="#6B7A71" stroke-width="2"/>
+        <!-- Sensores en el aire -->
+        <g transform="translate(250 178)">
+          <rect x="-16" y="-10" width="32" height="20" rx="3" fill="#2370AE" opacity=".85"/>
+          <text x="0" y="4" text-anchor="middle" font-size="10" fill="#fff" font-family="system-ui">HR202</text>
+        </g>
+        <g transform="translate(292 160)">
+          <line x1="0" y1="-20" x2="0" y2="18" stroke="#1E2D24" stroke-width="2"/>
+          <rect x="-4" y="14" width="8" height="18" rx="4" fill="#B9790A"/>
+        </g>
+        <!-- Ventilador en la pared -->
+        <g transform="translate(370 214)">
+          <rect x="-22" y="-22" width="44" height="44" rx="4" fill="#F8FBF9" stroke="#1E2D24" stroke-width="2.5"/>
+          <g class="aspa">
+            <path d="M0 0 C-4 -8 -2 -16 6 -17 C8 -10 6 -4 0 0 Z" fill="#1E2D24"/>
+            <path d="M0 0 C8 -4 16 -2 17 6 C10 8 4 6 0 0 Z" fill="#1E2D24"/>
+            <path d="M0 0 C4 8 2 16 -6 17 C-8 10 -6 4 0 0 Z" fill="#1E2D24"/>
+            <path d="M0 0 C-8 4 -16 2 -17 -6 C-10 -8 -4 -6 0 0 Z" fill="#1E2D24"/>
+          </g>
+          <circle r="3.5" fill="#F8FBF9" stroke="#1E2D24" stroke-width="1.5"/>
+        </g>
+        <!-- Tanque de agua con la bomba -->
+        <g transform="translate(420 236)">
+          <rect x="0" y="0" width="70" height="56" rx="4" fill="#F8FBF9" stroke="#1E2D24" stroke-width="2.5"/>
+          <rect class="nivel-agua" id="nivelAgua" x="2" y="14" width="66" height="40" rx="2" fill="#2370AE" opacity=".55"/>
+          <rect x="28" y="32" width="14" height="20" rx="3" fill="#1E2D24"/>
+          <text id="textoTanque" x="35" y="72" text-anchor="middle" font-size="12" fill="#1E2D24" font-family="system-ui">Tanque</text>
+        </g>
+        <!-- Caja de la electrónica -->
+        <g transform="translate(14 238)">
+          <rect width="34" height="54" rx="3" fill="#1E2D24"/>
+          <rect x="6" y="8" width="22" height="12" rx="1" fill="#9BE3B4" id="pantallita"/>
+          <circle cx="11" cy="32" r="3" fill="#B3332E" id="ledRojo" opacity=".25"/>
+          <circle cx="23" cy="32" r="3" fill="#2370AE" id="ledAzul" opacity=".25"/>
+          <circle cx="17" cy="44" r="4" fill="#C5D3CC"/>
+        </g>
+      </svg>
+    </div>
+    <div class="relato">
+      <h2 class="estado-titulo" id="estadoTitulo" data-tono="">Conecta el Arduino para empezar</h2>
+      <p class="estado-pista" id="estadoPista">Conecta el cable USB, pulsa «Conectar Arduino» y elige el puerto
+        (suele llamarse «USB-SERIAL CH340»). Si no tienes el Arduino a mano, pulsa «Probar sin Arduino».</p>
+      <div class="reloj" id="reloj" aria-live="polite"></div>
+      <div class="acciones">
+        <button class="boton agua" id="btnRiego" type="button" disabled>Regar ahora</button>
+        <button class="boton secundario" id="btnSilencio" type="button" disabled>Silenciar alarma</button>
+        <div class="segmentado" role="group" aria-label="Luz de cultivo">
+          <button type="button" data-luz="AUTO" aria-pressed="true" disabled>Luz por horario</button>
+          <button type="button" data-luz="ON" aria-pressed="false" disabled>Encendida</button>
+          <button type="button" data-luz="OFF" aria-pressed="false" disabled>Apagada</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lecturas" aria-label="Lecturas de los sensores">
+    <article class="lectura" data-tema="temp">
+      <h2>Temperatura</h2>
+      <div class="valor"><span id="vTemp">--</span><small>°C</small></div>
+      <div class="escala" aria-hidden="true"><div class="rango" id="rTemp"></div><div class="marca" id="mTemp"></div></div>
+      <div class="detalle" id="dTemp">Ventila sobre 30 °C, alarma en 35 °C</div>
+    </article>
+    <article class="lectura" data-tema="aire">
+      <h2>Humedad del aire</h2>
+      <div class="valor"><span id="vAire">--</span><small>%</small></div>
+      <div class="escala" aria-hidden="true"><div class="rango" id="rAire"></div><div class="marca" id="mAire"></div></div>
+      <div class="detalle" id="dAire">Rango ideal 40–80 %</div>
+    </article>
+    <article class="lectura" data-tema="suelo">
+      <h2>Humedad del suelo</h2>
+      <div class="valor"><span id="vSuelo">--</span><small>%</small></div>
+      <div class="escala" aria-hidden="true"><div class="rango" id="rSuelo"></div><div class="marca" id="mSuelo"></div></div>
+      <div class="detalle" id="dSuelo">Rango ideal 30–85 %</div>
+    </article>
+    <article class="lectura" data-tema="tanque">
+      <h2>Tanque de agua</h2>
+      <div class="valor"><span id="vTanque">--</span></div>
+      <div class="escala" aria-hidden="true"><div class="rango" id="rBomba" style="left:0;width:0"></div></div>
+      <div class="detalle" id="dTanque">Bomba usada esta hora: 0 s de 15 min</div>
+    </article>
+  </section>
+
+  <div class="cuerpo">
+    <div>
+      <section class="bloque">
+        <div class="cabecera-bloque">
+          <h2>Historial</h2>
+          <div class="segmentado" role="group" aria-label="Periodo de la gráfica">
+            <button type="button" data-ventana="600" aria-pressed="true">10 min</button>
+            <button type="button" data-ventana="3600" aria-pressed="false">1 hora</button>
+            <button type="button" data-ventana="0" aria-pressed="false">Todo</button>
+          </div>
+        </div>
+        <canvas class="grafica" id="gTemp" aria-label="Gráfica de temperatura"></canvas>
+        <div class="leyenda"><span style="--c: var(--sol)">Temperatura (°C)</span><span style="--c: var(--alarma)">Límite para ventilar</span></div>
+        <canvas class="grafica" id="gHum" aria-label="Gráfica de humedad del aire y del suelo"></canvas>
+        <div class="leyenda"><span style="--c: var(--agua)">Humedad del aire (%)</span><span style="--c: var(--hoja)">Humedad del suelo (%)</span></div>
+        <div class="fila-botones">
+          <button class="boton secundario" id="btnCsv" type="button">Descargar datos (CSV)</button>
+          <span class="vacio" id="cuentaDatos">0 lecturas guardadas</span>
+        </div>
+      </section>
+
+      <section class="bloque">
+        <h2>Consola</h2>
+        <p class="nota">Aquí aparece todo lo que envía el Arduino. También puedes escribir comandos (por ejemplo <code>AYUDA</code>).</p>
+        <div class="consola" id="consola" aria-live="off"></div>
+        <form class="envio" id="formComando">
+          <input id="comando" aria-label="Comando" autocomplete="off" placeholder="Escribe un comando y pulsa Enter" disabled>
+          <button class="boton" type="submit" id="btnEnviar" disabled>Enviar</button>
+        </form>
+      </section>
+    </div>
+
+    <div>
+      <section class="bloque">
+        <h2>Ajustes</h2>
+        <p class="nota">Los cambios se guardan en el Arduino y se mantienen aunque lo desconectes.</p>
+        <form id="formAjustes">
+          <fieldset>
+            <legend>Temperatura (°C)</legend>
+            <div class="campos">
+              <label>Ventilar desde <input type="number" step="0.5" min="0" max="60" name="temp_max" data-cmd="TEMP"></label>
+              <label>Alarma desde <input type="number" step="0.5" min="0" max="80" name="temp_crit" data-cmd="TEMPCRIT"></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Humedad del aire (%)</legend>
+            <div class="campos">
+              <label>Baja por debajo de <input type="number" step="1" min="0" max="100" name="hum_min" data-cmd="HUMMIN"></label>
+              <label>Alta por encima de <input type="number" step="1" min="0" max="100" name="hum_max" data-cmd="HUMMAX"></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Humedad del suelo (%)</legend>
+            <div class="campos">
+              <label>Seco por debajo de <input type="number" step="1" min="0" max="100" name="suelo_min" data-cmd="SUELOMIN"></label>
+              <label>Encharcado sobre <input type="number" step="1" min="0" max="100" name="suelo_max" data-cmd="SUELOMAX"></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Luz de cultivo (hora)</legend>
+            <div class="campos">
+              <label>Se enciende a las <input type="number" step="1" min="0" max="23" name="luz_ini"></label>
+              <label>Se apaga a las <input type="number" step="1" min="0" max="23" name="luz_fin"></label>
+            </div>
+          </fieldset>
+          <div class="fila-botones">
+            <button class="boton" type="submit" id="btnGuardar" disabled>Guardar ajustes</button>
+            <button class="boton secundario" type="button" id="btnFabrica" disabled>Volver a fábrica</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="bloque">
+        <h2>Calibración</h2>
+        <p class="nota">Hazla una vez, con el circuito ya armado. Cada botón toma la lectura de ese momento.</p>
+        <ol class="pasos">
+          <li>Deja el sensor HR202 al aire unos minutos en un sitio seco.
+            <div><button class="boton secundario" type="button" data-cal="AIRESECO" disabled>Guardar «aire seco»</button></div></li>
+          <li>Ponlo 10 min en un frasco cerrado con una toalla de papel mojada.
+            <div><button class="boton secundario" type="button" data-cal="AIREHUMEDO" disabled>Guardar «aire húmedo»</button></div></li>
+          <li>Clava los dos clavos en tierra seca, y luego en tierra recién regada.
+            <div><button class="boton secundario" type="button" data-cal="SUELOSECO" disabled>Guardar «suelo seco»</button>
+                 <button class="boton secundario" type="button" data-cal="SUELOHUMEDO" disabled>Guardar «suelo húmedo»</button></div></li>
+          <li>Con los dos cables de la sonda dentro del agua del tanque:
+            <div><button class="boton secundario" type="button" data-cal="TANQUE" disabled>Guardar «tanque con agua»</button></div></li>
+        </ol>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+// ------------------------------------------------------------------
+//  Textos para cada estado del firmware
+// ------------------------------------------------------------------
+const ESTADOS = {
+  NORMAL:              { titulo: "Todo en orden", pista: "Temperatura y humedad dentro del rango. El sistema sigue vigilando.", tono: "" },
+  HUMEDAD_ALTA:        { titulo: "Aire muy húmedo: ventilando", pista: "El ventilador saca el exceso de humedad. Se apaga cuando baje del límite.", tono: "accion" },
+  SUELO_ENCHARCADO:    { titulo: "Suelo encharcado", pista: "El riego queda en pausa hasta que la tierra se seque un poco.", tono: "accion" },
+  HUMEDAD_BAJA:        { titulo: "Aire seco: nebulizando", pista: "El aspersor riega en pulsos de 5 segundos, con un minuto de pausa entre pulsos.", tono: "accion" },
+  SUELO_SECO:          { titulo: "Suelo seco: regando", pista: "La bomba riega en pulsos de 5 segundos hasta que la tierra recupere humedad.", tono: "accion" },
+  TEMPERATURA_ALTA:    { titulo: "Hace calor: ventilando", pista: "El ventilador funciona hasta que la temperatura baje 2 °C del límite.", tono: "calor" },
+  TEMPERATURA_CRITICA: { titulo: "Temperatura crítica", pista: "Abre el invernadero o muévelo a la sombra. El ventilador ya está encendido.", tono: "alerta" },
+  SIN_AGUA:            { titulo: "El tanque está vacío", pista: "Rellena el tanque. La bomba no arranca sin agua para no dañarse.", tono: "alerta" },
+  SIN_DATOS:           { titulo: "Esperando lecturas", pista: "El Arduino está arrancando o el sensor de humedad no responde.", tono: "" },
+  FALLA_SENSOR_TEMP:   { titulo: "El sensor de temperatura no responde", pista: "Revisa el cable amarillo del DS18B20 (pin 2) y la resistencia de 4.7 kΩ. Por seguridad, el ventilador queda encendido.", tono: "alerta" },
+};
+
+// ------------------------------------------------------------------
+//  Utilidades
+// ------------------------------------------------------------------
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+const dos = (n) => String(n).padStart(2, "0");
+
+let toastTimer = null;
+function avisar(texto, esError = false) {
+  const t = $("#toast");
+  t.textContent = texto;
+  t.classList.toggle("error", esError);
+  t.classList.add("visible");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("visible"), 3200);
+}
+
+// ------------------------------------------------------------------
+//  Estado de la aplicación
+// ------------------------------------------------------------------
+const app = {
+  modo: "desconectado",       // desconectado | conectado | demo
+  cfg: null,
+  ultima: null,
+  historial: [],              // { fecha, ...telemetría }
+  ventanaSeg: 600,
+  enviar: async () => {},
+};
+const MAX_HISTORIAL = 7200;   // 4 horas a una lectura cada 2 s
+
+// ------------------------------------------------------------------
+//  Consola
+// ------------------------------------------------------------------
+function registrarConsola(texto, clase = "") {
+  const c = $("#consola");
+  const linea = document.createElement("div");
+  if (clase) linea.className = clase;
+  linea.textContent = texto;
+  c.appendChild(linea);
+  while (c.childNodes.length > 300) c.removeChild(c.firstChild);
+  c.scrollTop = c.scrollHeight;
+}
+
+// ------------------------------------------------------------------
+//  Procesar cada línea que llega del Arduino
+// ------------------------------------------------------------------
+function procesarLinea(linea) {
+  linea = linea.trim();
+  if (!linea) return;
+  if (!linea.startsWith("{")) { registrarConsola(linea); return; }
+  let msg;
+  try { msg = JSON.parse(linea); } catch { registrarConsola(linea); return; }
+
+  if (msg.tipo === "tel") {
+    msg.fecha = new Date();
+    app.ultima = msg;
+    app.historial.push(msg);
+    if (app.historial.length > MAX_HISTORIAL) app.historial.shift();
+    pintarLecturas(msg);
+    pintarGraficas();
+    $("#cuentaDatos").textContent = `${app.historial.length} lecturas guardadas`;
+    return;
+  }
+  if (msg.tipo === "cfg") {
+    app.cfg = msg;
+    llenarAjustes(msg);
+    pintarLuzModo(msg.luz_modo);
+    if (app.ultima) pintarLecturas(app.ultima);
+    registrarConsola(linea, "ok");
+    return;
+  }
+  if (msg.tipo === "ok")    { registrarConsola(linea, "ok"); avisar(textoOk(msg.cmd)); return; }
+  if (msg.tipo === "error") { registrarConsola(linea, "err"); avisar(msg.msg, true); return; }
+  registrarConsola(linea);
+}
+
+function textoOk(cmd) {
+  return ({ RIEGO: "Riego iniciado", SILENCIO: "Alarma silenciada 10 minutos", HORA: "Hora sincronizada",
+            CAL: "Calibración guardada", LUZ: "Luz actualizada", FABRICA: "Ajustes de fábrica restaurados" })[cmd]
+         || "Ajuste guardado";
+}
+
+// ------------------------------------------------------------------
+//  Pintar lecturas y el dibujo
+// ------------------------------------------------------------------
+function posicion(valor, min, max) {
+  return Math.max(0, Math.min(100, ((valor - min) / (max - min)) * 100));
+}
+
+function pintarEscala(rango, marca, valor, desde, hasta, min, max) {
+  $(rango).style.left = posicion(desde, min, max) + "%";
+  $(rango).style.width = (posicion(hasta, min, max) - posicion(desde, min, max)) + "%";
+  if (valor === null || valor === undefined) { $(marca).style.display = "none"; return; }
+  $(marca).style.display = "";
+  $(marca).style.left = posicion(valor, min, max) + "%";
+}
+
+function pintarLecturas(t) {
+  const cfg = app.cfg || { temp_max: 30, temp_crit: 35, hum_min: 40, hum_max: 80, suelo_min: 30, suelo_max: 85, sonda_suelo: 1, sonda_agua: 1 };
+
+  // Estado
+  const e = ESTADOS[t.estado] || { titulo: t.estado, pista: "", tono: "" };
+  const titulo = $("#estadoTitulo");
+  titulo.textContent = e.titulo;
+  titulo.dataset.tono = e.tono;
+  let pista = e.pista;
+  if (t.alarma === 2) pista += " La alarma está silenciada.";
+  $("#estadoPista").textContent = pista;
+  $("#reloj").textContent = `Hora del invernadero: ${t.hora}` + (t.hora_sync ? "" : " (sin sincronizar)");
+
+  // Temperatura
+  $("#vTemp").textContent = t.temp_c === null ? "--" : t.temp_c.toFixed(1);
+  pintarEscala("#rTemp", "#mTemp", t.temp_c, 10, cfg.temp_max, 0, 45);
+  $("#dTemp").textContent = `Ventila sobre ${cfg.temp_max} °C, alarma en ${cfg.temp_crit} °C`;
+
+  // Aire
+  $("#vAire").textContent = Math.round(t.hum_aire);
+  pintarEscala("#rAire", "#mAire", t.hum_aire, cfg.hum_min, cfg.hum_max, 0, 100);
+  $("#dAire").textContent = `Rango ideal ${cfg.hum_min}–${cfg.hum_max} %`;
+
+  // Suelo
+  if (!cfg.sonda_suelo) {
+    $("#vSuelo").textContent = "--";
+    $("#dSuelo").textContent = "Sonda de suelo desactivada";
+    pintarEscala("#rSuelo", "#mSuelo", null, cfg.suelo_min, cfg.suelo_max, 0, 100);
+  } else {
+    $("#vSuelo").textContent = t.hum_suelo === null ? "--" : Math.round(t.hum_suelo);
+    pintarEscala("#rSuelo", "#mSuelo", t.hum_suelo, cfg.suelo_min, cfg.suelo_max, 0, 100);
+    $("#dSuelo").textContent = t.hum_suelo === null
+      ? "La sonda no toca tierra o está desconectada"
+      : `Rango ideal ${cfg.suelo_min}–${cfg.suelo_max} %`;
+  }
+
+  // Tanque y uso de bomba
+  const hayAgua = t.agua === null ? null : !!t.agua;
+  $("#vTanque").textContent = hayAgua === null ? "--" : (hayAgua ? "Con agua" : "Vacío");
+  $("#vTanque").style.color = hayAgua === false ? "var(--alarma)" : "var(--agua)";
+  const cupo = 15 * 60;
+  $("#rBomba").style.width = Math.min(100, (t.bomba_s_hora / cupo) * 100) + "%";
+  $("#rBomba").style.background = "var(--agua)";
+  $("#dTanque").textContent = `Bomba usada esta hora: ${t.bomba_s_hora} s de 15 min`;
+
+  // Dibujo
+  const svg = $("#dibujo");
+  svg.dataset.ventilador = t.ventilador;
+  svg.dataset.bomba = t.bomba;
+  svg.dataset.luz = t.luz;
+  const nivel = $("#nivelAgua");
+  if (hayAgua === false) { nivel.setAttribute("y", 46); nivel.setAttribute("height", 8); }
+  else { nivel.setAttribute("y", 14); nivel.setAttribute("height", 40); }
+  $("#ledRojo").setAttribute("opacity", (t.aire === "BAJA" || t.suelo === "BAJA" || hayAgua === false) ? 1 : .25);
+  $("#ledAzul").setAttribute("opacity", t.aire === "ALTA" ? 1 : .25);
+  $("#btnSilencio").disabled = !(t.alarma === 1) || app.modo === "desconectado";
+}
+
+function pintarLuzModo(modo) {
+  $$("[data-luz]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.luz === modo)));
+}
+
+// ------------------------------------------------------------------
+//  Gráficas (canvas, sin librerías externas)
+// ------------------------------------------------------------------
+function prepararCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function color(nombre) {
+  return getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
+}
+
+function dibujarGrafica(canvas, series, opciones) {
+  const { ctx, w, h } = prepararCanvas(canvas);
+  const m = { izq: 38, der: 10, arr: 10, abj: 22 };
+  const datos = app.historial;
+  const ahora = datos.length ? datos[datos.length - 1].fecha.getTime() : Date.now();
+  const desde = app.ventanaSeg ? ahora - app.ventanaSeg * 1000 : (datos.length ? datos[0].fecha.getTime() : ahora - 600000);
+  const visibles = datos.filter((d) => d.fecha.getTime() >= desde);
+  const ancho = w - m.izq - m.der, alto = h - m.arr - m.abj;
+  let { min, max } = opciones;
+  if (opciones.auto) {
+    const vals = visibles.flatMap((d) => series.map((s) => d[s.campo])).filter((v) => typeof v === "number");
+    (opciones.lineas || []).forEach((l) => vals.push(l.valor));
+    if (vals.length) {
+      // Marcas enteras y parejas: el rango se ajusta a 4 pasos iguales
+      const lo = Math.floor(Math.min(...vals) - 1), hi = Math.ceil(Math.max(...vals) + 1);
+      const paso = Math.max(1, Math.ceil((hi - lo) / 4));
+      min = lo; max = lo + paso * 4;
+    }
+  }
+  const x = (t) => m.izq + ((t - desde) / Math.max(1, ahora - desde)) * ancho;
+  const y = (v) => m.arr + (1 - (v - min) / (max - min)) * alto;
+
+  ctx.font = "11px system-ui, sans-serif";
+  ctx.fillStyle = color("--musgo-suave");
+  ctx.strokeStyle = color("--linea");
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const v = min + ((max - min) * i) / 4;
+    const yy = Math.round(y(v)) + .5;
+    ctx.beginPath(); ctx.moveTo(m.izq, yy); ctx.lineTo(w - m.der, yy); ctx.stroke();
+    ctx.textAlign = "right"; ctx.fillText(Math.round(v), m.izq - 6, yy + 4);
+  }
+  ctx.textAlign = "left";
+  const fmt = (t) => { const d = new Date(t); return `${dos(d.getHours())}:${dos(d.getMinutes())}`; };
+  ctx.fillText(fmt(desde), m.izq, h - 6);
+  ctx.textAlign = "right";
+  ctx.fillText(fmt(ahora), w - m.der, h - 6);
+
+  (opciones.lineas || []).forEach((l) => {
+    ctx.save();
+    ctx.strokeStyle = l.color; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5;
+    const yy = y(l.valor);
+    ctx.beginPath(); ctx.moveTo(m.izq, yy); ctx.lineTo(w - m.der, yy); ctx.stroke();
+    ctx.restore();
+  });
+
+  if (!visibles.length) {
+    ctx.textAlign = "center";
+    ctx.fillText("Aún no hay datos", m.izq + ancho / 2, m.arr + alto / 2);
+    return;
+  }
+  series.forEach((s) => {
+    ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.lineJoin = "round";
+    ctx.beginPath();
+    let empezado = false;
+    visibles.forEach((d) => {
+      const v = d[s.campo];
+      if (typeof v !== "number") { empezado = false; return; }
+      const px = x(d.fecha.getTime()), py = y(Math.max(min, Math.min(max, v)));
+      if (!empezado) { ctx.moveTo(px, py); empezado = true; } else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+  });
+}
+
+function pintarGraficas() {
+  const cfg = app.cfg || { temp_max: 30 };
+  dibujarGrafica($("#gTemp"), [{ campo: "temp_c", color: color("--sol") }],
+                 { auto: true, min: 15, max: 35, lineas: [{ valor: cfg.temp_max, color: color("--alarma") }] });
+  dibujarGrafica($("#gHum"), [{ campo: "hum_aire", color: color("--agua") }, { campo: "hum_suelo", color: color("--hoja") }],
+                 { min: 0, max: 100 });
+}
+
+window.addEventListener("resize", pintarGraficas);
+$$("[data-ventana]").forEach((b) => b.addEventListener("click", () => {
+  app.ventanaSeg = Number(b.dataset.ventana);
+  $$("[data-ventana]").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+  pintarGraficas();
+}));
+
+// ------------------------------------------------------------------
+//  Exportar CSV (separador ; y coma decimal, se abre bien en Excel en español)
+// ------------------------------------------------------------------
+$("#btnCsv").addEventListener("click", () => {
+  if (!app.historial.length) { avisar("Aún no hay datos para descargar", true); return; }
+  const columnas = ["fecha", "hora_invernadero", "temp_c", "hum_aire", "hum_suelo", "agua", "estado",
+                    "ventilador", "bomba", "luz", "alarma", "adc_aire", "adc_suelo", "adc_agua"];
+  const num = (v) => (typeof v === "number" ? String(v).replace(".", ",") : (v === null || v === undefined ? "" : String(v)));
+  const filas = app.historial.map((d) => {
+    const f = d.fecha;
+    const fecha = `${f.getFullYear()}-${dos(f.getMonth() + 1)}-${dos(f.getDate())} ${dos(f.getHours())}:${dos(f.getMinutes())}:${dos(f.getSeconds())}`;
+    return [fecha, d.hora, d.temp_c, d.hum_aire, d.hum_suelo, d.agua, d.estado, d.ventilador, d.bomba, d.luz,
+            d.alarma, d.adc_aire, d.adc_suelo, d.adc_agua].map((v, i) => (i < 2 ? v : num(v))).join(";");
+  });
+  const csv = "﻿" + columnas.join(";") + "\r\n" + filas.join("\r\n") + "\r\n";
+  const a = document.createElement("a");
+  const n = new Date();
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = `invernadero_${n.getFullYear()}-${dos(n.getMonth() + 1)}-${dos(n.getDate())}_${dos(n.getHours())}${dos(n.getMinutes())}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+
+// ------------------------------------------------------------------
+//  Ajustes y calibración
+// ------------------------------------------------------------------
+function llenarAjustes(cfg) {
+  const f = $("#formAjustes");
+  ["temp_max", "temp_crit", "hum_min", "hum_max", "suelo_min", "suelo_max", "luz_ini", "luz_fin"].forEach((k) => {
+    if (cfg[k] !== undefined && document.activeElement !== f.elements[k]) f.elements[k].value = cfg[k];
+  });
+}
+
+$("#formAjustes").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  if (!app.cfg) return;
+  const f = ev.target;
+  const comandos = [];
+  $$("#formAjustes input[data-cmd]").forEach((inp) => {
+    const v = Number(inp.value);
+    if (inp.value !== "" && Math.abs(v - Number(app.cfg[inp.name])) > 1e-6) comandos.push(`${inp.dataset.cmd} ${v}`);
+  });
+  const ini = Number(f.elements.luz_ini.value), fin = Number(f.elements.luz_fin.value);
+  if (ini !== app.cfg.luz_ini || fin !== app.cfg.luz_fin) comandos.push(`LUZ ${ini} ${fin}`);
+  // Si se suben los mínimos por encima de los máximos actuales, conviene enviar primero los máximos
+  comandos.sort((a, b) => (/MAX|CRIT/.test(b) ? 1 : 0) - (/MAX|CRIT/.test(a) ? 1 : 0));
+  if (!comandos.length) { avisar("No hay cambios que guardar"); return; }
+  for (const c of comandos) { await app.enviar(c); await dormir(250); }
+});
+
+$("#btnFabrica").addEventListener("click", () => {
+  if (confirm("¿Volver a los ajustes de fábrica? Se pierden los umbrales y la calibración.")) app.enviar("FABRICA");
+});
+$$("[data-cal]").forEach((b) => b.addEventListener("click", () => app.enviar(`CAL ${b.dataset.cal}`)));
+$("#btnRiego").addEventListener("click", () => app.enviar("RIEGO"));
+$("#btnSilencio").addEventListener("click", () => app.enviar("SILENCIO"));
+$$("[data-luz]").forEach((b) => b.addEventListener("click", () => app.enviar(`LUZ ${b.dataset.luz}`)));
+$("#formComando").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const c = $("#comando").value.trim();
+  if (c) { app.enviar(c); $("#comando").value = ""; }
+});
+
+function habilitarControles(si) {
+  ["#btnRiego", "#btnGuardar", "#btnFabrica", "#comando", "#btnEnviar"].forEach((s) => ($(s).disabled = !si));
+  $$("[data-cal], [data-luz]").forEach((b) => (b.disabled = !si));
+}
+
+function ponerModo(modo) {
+  app.modo = modo;
+  const p = $("#pastilla");
+  p.dataset.estado = modo;
+  p.textContent = { desconectado: "Sin conexión", conectado: "Arduino conectado", demo: "Modo demostración" }[modo];
+  $("#btnConectar").textContent = modo === "conectado" ? "Desconectar" : "Conectar Arduino";
+  $("#btnDemo").textContent = modo === "demo" ? "Detener demostración" : "Probar sin Arduino";
+  $("#btnConectar").disabled = modo === "demo" || !("serial" in navigator);
+  $("#btnDemo").disabled = modo === "conectado";
+  habilitarControles(modo !== "desconectado");
+}
+
+async function sincronizarHora() {
+  const n = new Date();
+  await app.enviar(`HORA ${dos(n.getHours())}:${dos(n.getMinutes())}:${dos(n.getSeconds())}`);
+}
+
+// ------------------------------------------------------------------
+//  Conexión por USB (Web Serial)
+// ------------------------------------------------------------------
+const serie = { puerto: null, lector: null, escritor: null, cerrando: false };
+
+async function conectar() {
+  try {
+    serie.puerto = await navigator.serial.requestPort();
+    await serie.puerto.open({ baudRate: 9600 });
+  } catch (e) {
+    if (e.name !== "NotFoundError") avisar("No se pudo abrir el puerto. ¿Está abierto el Monitor Serie del Arduino IDE? Ciérralo e intenta de nuevo.", true);
+    serie.puerto = null;
+    return;
+  }
+  serie.cerrando = false;
+  const codificador = new TextEncoderStream();
+  codificador.readable.pipeTo(serie.puerto.writable).catch(() => {});
+  serie.escritor = codificador.writable.getWriter();
+  app.enviar = async (texto) => {
+    if (!serie.escritor) return;
+    registrarConsola("> " + texto, "tx");
+    await serie.escritor.write(texto + "\n");
+  };
+  ponerModo("conectado");
+  registrarConsola("# Conectado. El Arduino se reinicia al abrir el puerto; espera unos segundos.");
+  leerSerie();
+  // El Arduino se reinicia al conectar: esperar a que arranque y poner la hora
+  setTimeout(sincronizarHora, 3000);
+}
+
+async function leerSerie() {
+  const decodificador = new TextDecoderStream();
+  const cerrado = serie.puerto.readable.pipeTo(decodificador.writable).catch(() => {});
+  serie.lector = decodificador.readable.getReader();
+  let resto = "";
+  try {
+    while (true) {
+      const { value, done } = await serie.lector.read();
+      if (done) break;
+      resto += value;
+      const partes = resto.split("\n");
+      resto = partes.pop();
+      partes.forEach(procesarLinea);
+    }
+  } catch (e) {
+    if (!serie.cerrando) avisar("Se perdió la conexión con el Arduino", true);
+  } finally {
+    serie.lector.releaseLock();
+    await cerrado;
+    if (!serie.cerrando) await desconectar();
+  }
+}
+
+async function desconectar() {
+  serie.cerrando = true;
+  try { if (serie.lector) await serie.lector.cancel(); } catch {}
+  try { if (serie.escritor) { await serie.escritor.close(); serie.escritor.releaseLock(); } } catch {}
+  try { if (serie.puerto) await serie.puerto.close(); } catch {}
+  serie.puerto = serie.lector = serie.escritor = null;
+  app.enviar = async () => {};
+  ponerModo("desconectado");
+  registrarConsola("# Desconectado");
+}
+
+$("#btnConectar").addEventListener("click", () => (app.modo === "conectado" ? desconectar() : conectar()));
+if (!("serial" in navigator)) $("#avisoNavegador").hidden = false;
+
+// ------------------------------------------------------------------
+//  Modo demostración: simula el Arduino para probar el panel
+// ------------------------------------------------------------------
+const demo = {
+  timer: null,
+  t0: 0,
+  reloj: 0,
+  cfg: null,
+  s: null,
+  iniciar() {
+    this.t0 = Date.now();
+    const n = new Date();
+    this.reloj = n.getHours() * 3600 + n.getMinutes() * 60 + n.getSeconds();
+    this.cfg = { tipo: "cfg", version: "2.0.0 (demo)", temp_max: 30, temp_hist: 2, temp_crit: 35, hum_min: 40, hum_max: 80,
+                 suelo_min: 30, suelo_max: 85, hist: 5, adc_aire_seco: 900, adc_aire_hum: 350, adc_suelo_seco: 1000,
+                 adc_suelo_hum: 250, umbral_agua: 700, luz_ini: 6, luz_fin: 18, luz_modo: "AUTO",
+                 solo_arduino: 1, sonda_suelo: 1, sonda_agua: 1, usa_luz: 1, lcd: 1 };
+    this.s = { temp: 26, aire: 52, suelo: 38, agua: true, bombaHasta: 0, ultimaBomba: -1e9, bombaMs: 0,
+               vent: false, calor: false, silencioHasta: 0, aireEstado: "NORMAL", sueloEstado: "NORMAL" };
+    app.enviar = async (texto) => { registrarConsola("> " + texto, "tx"); setTimeout(() => this.comando(texto), 120); };
+    ponerModo("demo");
+    ["# Smart Greenhouse IoT v2.0.0 (simulado en el navegador)", "# Escribe AYUDA para ver los comandos"].forEach(procesarLinea);
+    procesarLinea(JSON.stringify(this.cfg));
+    this.timer = setInterval(() => this.paso(), 2000);
+    this.paso();
+  },
+  detener() {
+    clearInterval(this.timer);
+    this.timer = null;
+    app.enviar = async () => {};
+    ponerModo("desconectado");
+    registrarConsola("# Demostración detenida");
+  },
+  ahoraMs() { return Date.now() - this.t0; },
+  clasificar(v, actual, min, max, hist) {
+    if (actual === "BAJA" && v < min + hist) return "BAJA";
+    if (actual === "ALTA" && v > max - hist) return "ALTA";
+    return v < min ? "BAJA" : v > max ? "ALTA" : "NORMAL";
+  },
+  paso() {
+    const c = this.cfg, s = this.s, ms = this.ahoraMs();
+    const seg = (this.reloj + Math.floor(ms / 1000)) % 86400;
+    const bomba = ms < s.bombaHasta;
+    // Física de juguete: el sol calienta y la bomba humedece
+    s.temp += (Math.sin(ms / 90000) * 0.25) + (s.vent ? -0.35 : 0.12) + (Math.random() - 0.5) * 0.15;
+    s.aire += (bomba ? 3.5 : -0.35) + (s.vent ? -0.6 : 0) + (Math.random() - 0.5) * 0.6;
+    s.suelo += (bomba ? 4 : -0.25) + (Math.random() - 0.5) * 0.3;
+    s.temp = Math.min(40, Math.max(15, s.temp));
+    s.aire = Math.min(98, Math.max(15, s.aire));
+    s.suelo = Math.min(98, Math.max(5, s.suelo));
+
+    if (!s.calor && s.temp > c.temp_max) s.calor = true;
+    else if (s.calor && s.temp < c.temp_max - c.temp_hist) s.calor = false;
+    s.aireEstado = this.clasificar(s.aire, s.aireEstado, c.hum_min, c.hum_max, c.hist);
+    s.sueloEstado = this.clasificar(s.suelo, s.sueloEstado, c.suelo_min, c.suelo_max, c.hist);
+    const critico = s.temp >= c.temp_crit;
+    const regar = s.agua && (s.sueloEstado === "BAJA" || (s.sueloEstado !== "ALTA" && s.aireEstado === "BAJA"));
+    if (regar && !bomba && ms - s.ultimaBomba > 65000) { s.bombaHasta = ms + 5000; s.ultimaBomba = ms; s.bombaMs += 5000; }
+    const bombaAhora = ms < s.bombaHasta;
+    const quiereVent = s.calor || s.aireEstado === "ALTA";
+    const enHorario = c.luz_ini < c.luz_fin ? seg >= c.luz_ini * 3600 && seg < c.luz_fin * 3600
+                                            : seg >= c.luz_ini * 3600 || seg < c.luz_fin * 3600;
+    const quiereLuz = c.luz_modo === "ON" || (c.luz_modo === "AUTO" && c.luz_ini !== c.luz_fin && enHorario);
+    s.vent = quiereVent && !bombaAhora;
+    const luz = quiereLuz && !bombaAhora && !s.vent;
+    const estado = !s.agua ? "SIN_AGUA" : critico ? "TEMPERATURA_CRITICA" : s.calor ? "TEMPERATURA_ALTA"
+                 : s.sueloEstado === "BAJA" ? "SUELO_SECO" : s.aireEstado === "BAJA" ? "HUMEDAD_BAJA"
+                 : s.sueloEstado === "ALTA" ? "SUELO_ENCHARCADO" : s.aireEstado === "ALTA" ? "HUMEDAD_ALTA" : "NORMAL";
+    const alarma = (!s.agua || critico) ? (ms < s.silencioHasta ? 2 : 1) : 0;
+    const h = Math.floor(seg / 3600), m = Math.floor(seg / 60) % 60, sg = seg % 60;
+    const adcAire = Math.round(c.adc_aire_seco + (c.adc_aire_hum - c.adc_aire_seco) * s.aire / 100);
+    const adcSuelo = Math.round(c.adc_suelo_seco + (c.adc_suelo_hum - c.adc_suelo_seco) * s.suelo / 100);
+    procesarLinea(JSON.stringify({
+      tipo: "tel", t_ms: ms, hora: `${dos(h)}:${dos(m)}:${dos(sg)}`, hora_sync: 1,
+      temp_c: Math.round(s.temp * 100) / 100, hum_aire: Math.round(s.aire * 10) / 10, adc_aire: adcAire, do_aire: s.aire > 70 ? 1 : 0,
+      hum_suelo: Math.round(s.suelo * 10) / 10, adc_suelo: adcSuelo, agua: s.agua ? 1 : 0, adc_agua: s.agua ? 240 : 1023,
+      estado, aire: s.aireEstado, suelo: s.sueloEstado, ventilador: s.vent ? 1 : 0, bomba: bombaAhora ? 1 : 0,
+      luz: luz ? 1 : 0, alarma, bomba_s_hora: Math.floor(s.bombaMs / 1000) }));
+  },
+  comando(texto) {
+    const p = texto.trim().replace(/[:,]/g, " ").split(/\s+/);
+    const n = (p[0] || "").toUpperCase(), a = (p[1] || "").toUpperCase(), v = Number(p[1]);
+    const c = this.cfg, s = this.s;
+    const ok = (cmd) => { procesarLinea(JSON.stringify({ tipo: "ok", cmd })); procesarLinea(JSON.stringify(c)); };
+    const err = (msg) => procesarLinea(JSON.stringify({ tipo: "error", msg }));
+    const campos = { TEMP: "temp_max", TEMPCRIT: "temp_crit", HUMMIN: "hum_min", HUMMAX: "hum_max",
+                     SUELOMIN: "suelo_min", SUELOMAX: "suelo_max", HIST: "hist", TEMPHIST: "temp_hist", UMBRALAGUA: "umbral_agua" };
+    if (campos[n]) {
+      if (Number.isNaN(v)) return err("Falta el valor");
+      const viejo = c[campos[n]];
+      c[campos[n]] = v;
+      const valido = c.temp_max >= 0 && c.temp_max <= 60 && c.temp_crit >= c.temp_max && c.temp_crit <= 80 &&
+                     c.hum_min >= 0 && c.hum_max >= c.hum_min && c.hum_max <= 100 &&
+                     c.suelo_min >= 0 && c.suelo_max >= c.suelo_min && c.suelo_max <= 100;
+      if (!valido) { c[campos[n]] = viejo; return err("Valor fuera de rango"); }
+      return ok(n);
+    }
+    switch (n) {
+      case "AYUDA": case "?":
+        ["# Comandos: ESTADO, TEMP 30, TEMPCRIT 35, HUMMIN 40, HUMMAX 80, SUELOMIN 30, SUELOMAX 85,",
+         "#  LUZ 6 18 | LUZ ON | LUZ OFF | LUZ AUTO, HORA 14:30, RIEGO, SILENCIO, CAL ..., FABRICA",
+         "#  En la demostración, AGUA NO / AGUA SI simulan el tanque vacío o lleno."].forEach(procesarLinea);
+        return;
+      case "ESTADO": return procesarLinea(JSON.stringify(c));
+      case "RIEGO":
+        if (!s.agua) return err("Sin agua en el tanque");
+        s.bombaHasta = this.ahoraMs() + 5000; s.bombaMs += 5000;
+        return procesarLinea(JSON.stringify({ tipo: "ok", cmd: "RIEGO" }));
+      case "SILENCIO": s.silencioHasta = this.ahoraMs() + 600000; return procesarLinea(JSON.stringify({ tipo: "ok", cmd: "SILENCIO" }));
+      case "HORA": {
+        const h = Number(p[1]), m = Number(p[2]), sg = Number(p[3] || 0);
+        if (!(h >= 0 && h <= 23 && m >= 0 && m <= 59)) return err("Uso: HORA hh:mm[:ss]");
+        this.reloj = h * 3600 + m * 60 + sg - Math.floor(this.ahoraMs() / 1000);
+        return procesarLinea(JSON.stringify({ tipo: "ok", cmd: "HORA" }));
+      }
+      case "LUZ":
+        if (["ON", "OFF", "AUTO"].includes(a)) { c.luz_modo = a; return ok("LUZ"); }
+        if (Number(p[1]) >= 0 && Number(p[1]) <= 23 && Number(p[2]) >= 0 && Number(p[2]) <= 23) {
+          c.luz_ini = Number(p[1]); c.luz_fin = Number(p[2]); c.luz_modo = "AUTO"; return ok("LUZ");
+        }
+        return err("Uso: LUZ ON | LUZ OFF | LUZ AUTO | LUZ inicio fin");
+      case "CAL":
+        if (["AIRESECO", "AIREHUMEDO", "SUELOSECO", "SUELOHUMEDO", "TANQUE"].includes(a)) return ok("CAL");
+        return err("Uso: CAL AIRESECO|AIREHUMEDO|SUELOSECO|SUELOHUMEDO|TANQUE");
+      case "FABRICA": {
+        const modo = c.luz_modo;
+        Object.assign(c, { temp_max: 30, temp_crit: 35, hum_min: 40, hum_max: 80, suelo_min: 30, suelo_max: 85, hist: 5, luz_ini: 6, luz_fin: 18, luz_modo: "AUTO" });
+        void modo;
+        return ok("FABRICA");
+      }
+      case "AGUA":
+        s.agua = a !== "NO";
+        return procesarLinea(`# Demostración: tanque ${s.agua ? "lleno" : "vacío"}`);
+      default:
+        return err("Comando desconocido. Escribe AYUDA");
+    }
+  },
+};
+
+$("#btnDemo").addEventListener("click", () => (app.modo === "demo" ? demo.detener() : demo.iniciar()));
+
+ponerModo("desconectado");
+pintarGraficas();
+</script>
+</body>
+</html>
