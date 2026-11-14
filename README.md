@@ -36,7 +36,7 @@ Diagramas de bloques, flujo del sistema y modelo UML: carpeta `docs/assets/`.
 | Mini bomba sumergible 3–6V | Actuador (relé) | Aspersor cuando la humedad es baja, por pulsos |
 | Mini ventilador 5V 40×40 | Actuador (relé) | Ventilación por calor o por humedad alta |
 | LED rojo / LED azul | Indicadores | Humedad baja / humedad alta |
-| Módulo relé 5V (×2) | Interfaz de potencia | Aísla el Arduino de los motores |
+| Módulo relé 5V (×2, hay 3) | Interfaz de potencia | Enciende los motores sin pasar su corriente por los pines del Arduino |
 
 - Conexiones pin a pin, cableado de potencia y calibración: [`hardware/circuits/conexiones.md`](hardware/circuits/conexiones.md)
 - Lista de materiales (comprados y faltantes): [`hardware/bom/BOM.md`](hardware/bom/BOM.md)
@@ -55,6 +55,7 @@ Se leen los sensores cada 2 s. Todos los umbrales están en `firmware/include/Co
 | Humedad > 80 % (sale de ALTA al bajar a 75 %) | ON | OFF | OFF | ON |
 | Falla del DS18B20 (desconectado) | ON (por seguridad) | — | Parpadeo alternado | Parpadeo alternado |
 
+- Todo se alimenta desde el Arduino por USB (sin fuente externa): por eso la bomba y el ventilador nunca funcionan a la vez; el ventilador se pausa los 5 s de cada riego. Se cambia con `ALIMENTACION_SOLO_ARDUINO` en `Config.h`.
 - La bomba respeta el límite del fabricante (máx. 20 min/hora): el firmware la limita a 15 min/hora y, con los valores por defecto, en la práctica trabaja menos de 5 min/hora.
 - Al arrancar, los relés se dejan apagados **antes** de configurar los pines como salida, para que la bomba no se active por un instante.
 - El LED de la placa (pin 13) parpadea con cada muestra: indica que el sistema está vivo.

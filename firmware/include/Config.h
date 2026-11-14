@@ -22,6 +22,16 @@ const uint8_t PIN_RELE_VENTILADOR  = 8;   // IN del relé (o transistor) del ven
 const uint8_t PIN_LED_ESTADO       = LED_BUILTIN; // LED de la placa (pin 13): parpadea = sistema vivo
 
 // ---------------------------------------------------------------------
+//  Alimentación
+// ---------------------------------------------------------------------
+// true  -> TODO se alimenta desde el Arduino conectado por USB (computador o
+//          cargador de celular). La bomba y el ventilador NUNCA funcionan a la vez:
+//          mientras la bomba riega (5 s), el ventilador se pausa. Así el consumo
+//          total queda por debajo de los 500 mA que aguanta el USB del Arduino.
+// false -> bomba y ventilador con fuente externa de 5V: pueden funcionar a la vez.
+const bool ALIMENTACION_SOLO_ARDUINO = true;
+
+// ---------------------------------------------------------------------
 //  Lógica eléctrica de los actuadores
 // ---------------------------------------------------------------------
 // Los módulos relé con optoacoplador casi siempre se activan con nivel BAJO

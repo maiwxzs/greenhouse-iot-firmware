@@ -584,13 +584,15 @@ public:
         regla.evaluarHumedad(sensorHum.ultimaLectura());
         estadoActual = regla.obtenerEstado();
 
-        // Ventilador: calor, humedad alta o falla del sensor de temperatura
-        if (regla.requiereVentilacion()) ventilador.encender();
-        else                             ventilador.apagar();
-
         // Aspersor: pulsos mientras la humedad siga baja
         if (regla.requiereRiego()) bomba.solicitarPulso(ahora);
         else                       bomba.apagar();
+
+        // Ventilador: calor, humedad alta o falla del sensor de temperatura.
+        // Si todo se alimenta del Arduino, se pausa mientras la bomba riega.
+        const bool pausaPorBomba = ALIMENTACION_SOLO_ARDUINO && bomba.estado;
+        if (regla.requiereVentilacion() && !pausaPorBomba) ventilador.encender();
+        else                                               ventilador.apagar();
 
         // LEDs de humedad
         if (regla.hayFallaSensor()) {
