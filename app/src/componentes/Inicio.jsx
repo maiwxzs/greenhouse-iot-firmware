@@ -111,7 +111,7 @@ function Ficha({ id, t, cfg, modo, enviar, acciones, cerrar }) {
   );
 }
 
-export default function Inicio({ eventos = [], verEventos, t, cfg, vivo, modo, latido, envio, pagina, sel, setSel, foco, setFoco, enviar, acciones, aireDesde, aguaHoy, soportaSerie }) {
+export default function Inicio({ reducir, eventos = [], verEventos, t, cfg, vivo, modo, latido, envio, pagina, sel, setSel, foco, setFoco, enviar, acciones, aireDesde, aguaHoy, soportaSerie }) {
   const e = t ? textoEstado(t.estado) : { titulo: modo === "desconectado" ? "Sin conexión" : "Esperando lecturas", detalle: "", tono: "neutro" };
   const datos = useMemo(() => vivo.map((l) => ({ ...l, aire: l.aire_alta, agua_n: l.agua })), [vivo]);
   const filas = textoLcd(t, pagina);
@@ -123,7 +123,7 @@ export default function Inicio({ eventos = [], verEventos, t, cfg, vivo, modo, l
     <div className="inicio">
       <div className="escena-marco" style={{ aspectRatio: `${VB.w} / ${VB.h}` }} onClick={() => setSel(null)}>
         <Escena t={t} cfg={cfg} modo={modo} latido={latido} envio={envio} pagina={pagina}
-          sel={sel} setSel={setSel} foco={foco} setFoco={setFoco} tapaAbierta={sel === "caja"} />
+          sel={sel} setSel={setSel} foco={foco} setFoco={setFoco} tapaAbierta={sel === "caja"} reducir={reducir} />
         {foco && foco !== sel && PIEZAS[foco] && <span className="etiqueta-pieza" style={pct(P(...PIEZAS[foco].ancla))}>{PIEZAS[foco].nombre}</span>}
         {sel && PIEZAS[sel] && <Ficha id={sel} t={t} cfg={cfg} modo={modo} enviar={enviar} acciones={acciones} cerrar={() => setSel(null)} />}
         {modo === "desconectado" && (

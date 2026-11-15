@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LuActivity, LuCalendarDays, LuFastForward, LuFlaskConical, LuGlassWater, LuHouse, LuInfo, LuListChecks,
-  LuPlay, LuPlugZap, LuSlidersHorizontal, LuSquare, LuTerminal, LuUnplug,
+  LuPlay, LuPlugZap, LuSlidersHorizontal, LuSparkles, LuSquare, LuTerminal, LuUnplug,
 } from "react-icons/lu";
 import Inicio from "./componentes/Inicio.jsx";
 import EnVivo from "./componentes/EnVivo.jsx";
@@ -41,6 +41,9 @@ let idLinea = 0;
 
 export default function App() {
   const [vista, setVista] = useState("inicio");
+  // Animaciones activadas por defecto; se pueden reducir desde el menú lateral (se recuerda en este equipo)
+  const [animar, setAnimar] = useState(() => { try { return localStorage.getItem("invernadero.animaciones") !== "no"; } catch { return true; } });
+  const cambiarAnimar = () => setAnimar((a) => { try { localStorage.setItem("invernadero.animaciones", a ? "no" : "si"); } catch { /* sin almacenamiento */ } return !a; });
   const [cfg, setCfg] = useState(null);
   const [ultima, setUltima] = useState(null);
   const [vivo, setVivo] = useState([]);
@@ -184,7 +187,7 @@ export default function App() {
   const acciones = { conectar: conectarUsb, demo: iniciarDemo, rellenar: conexion.rellenarDemo };
 
   return (
-    <div className="app" data-alarma={+(t?.alarma === 1)}>
+    <div className="app" data-alarma={+(t?.alarma === 1)} data-movimiento={animar ? "completo" : "reducido"}>
       <nav className="riel" aria-label="Secciones">
         <div className="marca">
           <Logo />
@@ -202,6 +205,9 @@ export default function App() {
             </li>
           ))}
         </ul>
+        <button type="button" className="interruptor" role="switch" aria-checked={animar} onClick={cambiarAnimar}>
+          <LuSparkles /> Animaciones <i aria-hidden="true" />
+        </button>
         <div className="conexion" data-modo={modo}>
           <p className="conexion-estado" role="status"><i />{{ desconectado: "Sin conexión", usb: "Arduino por USB", demo: "Demostración" }[modo]}</p>
           {modo === "desconectado" && (
@@ -241,7 +247,7 @@ export default function App() {
         )}
 
         {vista === "inicio" ? (
-          <Inicio eventos={eventos} verEventos={() => setVista("eventos")} t={t} cfg={cfg} vivo={vivo} modo={modo} latido={latido} envio={envio} pagina={pagina}
+          <Inicio reducir={!animar} eventos={eventos} verEventos={() => setVista("eventos")} t={t} cfg={cfg} vivo={vivo} modo={modo} latido={latido} envio={envio} pagina={pagina}
             sel={sel} setSel={setSel} foco={foco} setFoco={setFoco} enviar={enviar} acciones={acciones}
             aireDesde={aireDesde.current} aguaHoy={aguaHoy} soportaSerie={soportaSerie} />
         ) : (

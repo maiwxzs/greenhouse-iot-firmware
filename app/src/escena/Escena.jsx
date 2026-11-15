@@ -353,7 +353,7 @@ function luz(hora) {
   return { color: "#0B1A2C", op: 0 };
 }
 
-export default function Escena({ t, cfg, modo, latido, envio, pagina, sel, setSel, foco, setFoco, tapaAbierta }) {
+export default function Escena({ t, cfg, modo, latido, envio, pagina, sel, setSel, foco, setFoco, tapaAbierta, reducir = false }) {
   // Registro de los elementos que anima el motor (refs estables por nombre)
   const el = useRef({}).current;
   const r = useMemo(() => {
@@ -365,7 +365,6 @@ export default function Escena({ t, cfg, modo, latido, envio, pagina, sel, setSe
   const motor = useRef(null);
   const datos = useRef(t);
   datos.current = t;
-  const reducir = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
   useEffect(() => {
     const m = new Motor(el);
