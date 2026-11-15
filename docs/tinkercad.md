@@ -14,7 +14,7 @@ El circuito completo está reproducido en Tinkercad Circuits, lo que permite pro
 | Módulo relé (×2) | Relay SPDT + NPN Transistor + Diode + Resistor de 1 kΩ | Es el circuito que trae el módulo por dentro |
 | Bomba y ventilador | DC Motor (×2) | |
 | Zumbador piezoeléctrico | Piezo | |
-| LCD 16×2 I2C | LCD 16 x 2 (I2C) | Usa la librería Adafruit_LiquidCrystal de Tinkercad |
+| LCD 16×2 I2C | LCD 16 x 2 (I2C) | Tipo **PCF8574**, dirección 32 (0x20), librería LiquidCrystal_I2C |
 | Pulsador | Pushbutton | |
 | LEDs y resistencias | LED rojo, LED azul y Resistor de 220 Ω | Igual |
 
@@ -32,35 +32,82 @@ El circuito completo está reproducido en Tinkercad Circuits, lo que permite pro
 | Piezo | + / − | **D10** / GND |
 | LCD 16 x 2 (I2C) | GND / VCC / SDA / SCL | GND / 5 V / **A4** / **A5** |
 
-Cada relé (bomba en **D7** y ventilador en **D8**):
+Cada relé (bomba en **D7** y ventilador en **D8**). Los números son los terminales del «Relay SPDT» de Tinkercad, que se ven al pasar el cursor:
 
 | Pieza | Conexión |
 |---|---|
 | Resistencia de 1 kΩ | Del pin del Arduino a la base del transistor NPN |
-| Transistor NPN | Emisor a GND; colector a un terminal de la bobina |
-| Bobina del relé | El otro terminal a 5 V |
-| Diodo | En paralelo con la bobina, cátodo (franja) hacia 5 V |
-| COM del relé | 5 V |
-| NO del relé | + del motor; − del motor a GND |
+| Transistor NPN | Emisor a GND; colector al **terminal 5** (bobina) |
+| Bobina del relé | **Terminal 8** a 5 V |
+| Diodo | Ánodo al terminal 5, cátodo (franja) al terminal 8 |
+| Común | **Terminal 1** a 5 V |
+| Contacto normalmente abierto | **Terminal 6** al motor; el otro borne del motor a GND |
+
+El **terminal 7** es el contacto normalmente cerrado: un motor conectado ahí gira con el relé en reposo y se detiene al activarlo.
+
+La pantalla de Tinkercad viene configurada por defecto con el expansor MCP23008; la librería LiquidCrystal_I2C solo funciona con el **PCF8574**, que se elige en la propiedad **Tipo** de la pieza. Con el MCP23008 la pantalla queda en blanco.
+
+### Nombres y colores
+
+Cada pieza lleva un nombre en el inspector de Tinkercad (`Tanque agua`, `Humedad aire`, `Humedad suelo`, `Temperatura`, `Boton riego`, `LED suelo seco`, `LED aire humedo`, `Alarma`, `Bomba`, `Ventilador`, `Rele bomba`, `Rele ventilador`, `Pantalla`) y los cables siguen un código por función:
+
+| Color | Función |
+|---|---|
+| Rojo | 5 V |
+| Negro | GND |
+| Verde | Sensores analógicos (A1, A2, A3) |
+| Amarillo | Entradas de contacto (D3, D4) |
+| Naranja | Indicadores: LEDs y piezo (D5, D6, D10) |
+| Violeta | Control de los relés: resistencia, transistor, diodo y bobina |
+| Blanco | Salida de los relés hacia los motores |
+| Azul / turquesa | SDA / SCL de la pantalla |
 
 Los slideswitch usan el pull-up interno del Arduino, igual que el contacto real del módulo HR202: cerrado a GND significa aire húmedo o tanque con agua.
 
+## Pantalla y monitor serie
+
+La pantalla alterna dos páginas, cada una durante 4 s:
+
+```
+T:24.8C  HR:OK        SUELO SECO
+S:50% Agua:OK         V:0 B:1    08:00
+```
+
+Un cambio de estado salta de inmediato a la segunda página. Las acciones del usuario se muestran en la primera fila con una duración mínima de lectura: `Riego manual`, `Riego remoto` y `Ya esta regando` 3 s; `Alarma callada` y `Tanque sin agua` 4 s; `Ajuste guardado` 2,5 s. Un aviso que llega mientras otro lleva menos de 1,5 s en pantalla espera su turno. La pantalla solo reescribe las filas que cambian, por lo que se refresca cinco veces por segundo sin frenar el control.
+
+El monitor serie muestra una línea de estado cuando algo cambia, y cada 5 s si todo sigue igual:
+
+```
+T=24.8C  HR=OK  HS=0%  Agua=OK  | SUELO SECO | V0 B1
+```
+
 ## Comportamiento verificado
 
-| Acción en la simulación | Resultado |
-|---|---|
-| Temperatura del TMP36 sobre 30 °C | Gira el motor del ventilador |
-| Slideswitch de humedad hacia GND | Tras 3 lecturas: LED azul, ventilador y `HR:ALTA` en la pantalla |
-| Sensor de suelo seco (deslizador al mínimo) | LED rojo y pulsos del motor de la bomba; el ventilador se pausa durante cada pulso |
-| Slideswitch del tanque abierto | «SIN AGUA», bomba bloqueada, LED rojo intermitente y pitidos |
-| Pushbutton | Riego manual de 3 s, o silencio si la alarma está sonando |
-| `TEMP 25` en el Serial Monitor | Ventila desde 25 °C |
+Posición de partida de cada prueba: tanque con agua, aire normal, suelo al 50 % y 24 °C.
+
+| # | Acción | Resultado |
+|---|---|---|
+| 1 | Iniciar la simulación | Saludo durante 3 s; luego lecturas, `NORMAL`, motores detenidos |
+| 2 | Suelo al 0 % | `SUELO SECO`, LED rojo, bomba 3 s encendida y 10 s en pausa, en ciclo |
+| 3 | Subir el suelo | Sigue seco hasta el 34 %; desde el 35 % vuelve a `NORMAL` |
+| 4 | Suelo sobre el 85 % | `SUELO MOJADO`, sin riego |
+| 5 | TMP36 a 31 °C | `TEMP ALTA`, ventilador encendido |
+| 6 | Bajar a 29 °C y a 27 °C | Sigue ventilando a 29 °C; se apaga por debajo de 28 °C |
+| 7 | 31 °C y suelo seco | Durante cada pulso de la bomba el ventilador se detiene; nunca `V1 B1` |
+| 8 | Interruptor de humedad del aire | A los 3 s: `HR:ALTA`, LED azul, ventilador |
+| 9 | Pulsador | `Riego manual`, bomba durante 3 s |
+| 10 | Interruptor del tanque en vacío | `SIN AGUA`, LED rojo intermitente, tres pitidos cada 15 s, riego bloqueado |
+| 11 | Pulsador con la alarma sonando | `Alarma callada`; el LED sigue intermitente mientras falte agua |
+| 12 | TMP36 a 36 °C | `TEMP CRITICA`, ventilador y pitidos |
+| 13 | `AYUDA`, `ESTADO`, `TEMP 25`, `RIEGO` en el monitor | Lista de comandos, umbrales, `OK TEMP`, `OK RIEGO` |
 
 ## Diferencias con el equipo real
 
 - **Tiempos más cortos:** pulsos de riego de 3 s con pausas de 10 s (en el real, 5 s y 1 min), porque la simulación corre más lenta que el tiempo real.
-- **Muestreo cada segundo** en lugar de cada 2 s.
+- **Muestreo cada 250 ms** en lugar de cada 2 s; el antirrebote del contacto de humedad se ajusta a 12 lecturas para conservar los 3 s.
 - **Menos comandos:** `AYUDA`, `ESTADO`, `TEMP`, `SUELOMIN`, `SUELOMAX` y `RIEGO`. No guarda los ajustes en la EEPROM ni tiene calibración.
+- **Comandos sin fin de línea:** el monitor serie de Tinkercad envía el texto sin Enter, así que un comando se ejecuta tras 100 ms sin caracteres nuevos.
+- **Pulsador por interrupción:** D4 usa la interrupción de cambio de pin PCINT20 para no perder pulsaciones cortas mientras se escribe en la pantalla.
 - **Monitor serie en texto legible** en lugar de JSON, por lo que la aplicación de monitoreo no se conecta a Tinkercad.
 - **Relés activos en alto:** el transistor invierte la lógica respecto a los módulos reales, que se activan en bajo.
 - **Sensor de temperatura analógico:** el TMP36 se lee por A3 en lugar del bus 1-Wire en D2.

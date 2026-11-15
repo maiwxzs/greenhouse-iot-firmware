@@ -2,6 +2,16 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versiones según [SemVer](https://semver.org/lang/es/).
 
+## [3.0.1] - 2026-11-15
+
+### Corregido
+- Simulación de Tinkercad: pantalla con el expansor PCF8574 y la librería LiquidCrystal_I2C; motores en el contacto normalmente abierto del relé (terminal 6).
+- Simulación de Tinkercad: el pulsador se lee por interrupción y ya no pierde pulsaciones cortas; los comandos del monitor serie se ejecutan sin necesidad de Enter.
+
+### Cambiado
+- Simulación de Tinkercad: avisos en la pantalla con duración mínima de lectura, páginas de 4 s, refresco de la pantalla cinco veces por segundo y línea de estado del monitor solo cuando algo cambia.
+- Documentación de Tinkercad con los terminales del relé, el código de colores, los nombres de las piezas y las 13 pruebas verificadas.
+
 ## [3.0.0] - 2026-11-14
 
 ### Agregado
