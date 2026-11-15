@@ -121,7 +121,7 @@ npm run dev          # interfaz en http://localhost:8000 con recarga (Chrome o E
 npm run instalador   # genera release/Invernadero-IoT-<versión>-Windows.exe
 ```
 
-GitHub Actions (`.github/workflows/aplicacion.yml`) construye el instalador en Windows en cada cambio de `app/`, abre la aplicación empaquetada en modo de prueba (`--prueba`) para comprobar que la interfaz y la maqueta cargan, y deja el `.exe` como artefacto. Al publicar una etiqueta `vX.Y.Z`, adjunta el instalador a una versión en Releases.
+GitHub Actions (`.github/workflows/aplicacion.yml`) construye el instalador en Windows en cada cambio de `app/`, abre la aplicación empaquetada en modo de prueba (`--prueba`) para comprobar que la interfaz y la maqueta cargan, y deja el `.exe` como artefacto. Al publicar una etiqueta `vX.Y.Z`, o al ejecutar el flujo a mano (**Actions → Aplicación de escritorio → Run workflow**) indicando la versión, adjunta el instalador a una versión en Releases.
 
 | Dependencia | Uso |
 |---|---|
