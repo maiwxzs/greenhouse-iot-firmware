@@ -49,7 +49,7 @@ El módulo HR202 tiene además su propio LED verde, que se enciende junto con el
 
 ## Aplicación de monitoreo
 
-La aplicación se abre en **Google Chrome o Microsoft Edge**, que son los navegadores con acceso al puerto USB. Se abre el archivo `app/dist/index.html` o la dirección de GitHub Pages del proyecto. Con el ícono de instalar de la barra de direcciones queda como aplicación de escritorio y abre sin internet.
+La aplicación se abre en **Google Chrome o Microsoft Edge**, que son los navegadores con acceso al puerto USB. Se abre el archivo `app/dist/index.html` o la dirección publicada del proyecto, [https://maiwxzs.github.io/greenhouse-iot-firmware/](https://maiwxzs.github.io/greenhouse-iot-firmware/). Con el ícono de instalar de la barra de direcciones queda como aplicación de escritorio y abre sin internet.
 
 **Conectar:** el botón **Conectar Arduino** muestra los puertos disponibles; el del Arduino suele llamarse «USB-SERIAL CH340». El Arduino se reinicia al abrir el puerto, así que las lecturas tardan unos segundos. Al conectarse, la aplicación pone en hora el reloj del invernadero. Solo un programa a la vez puede usar el puerto: si aparece ocupado, hay que cerrar el Monitor Serie del Arduino IDE.
 

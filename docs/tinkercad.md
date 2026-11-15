@@ -2,6 +2,12 @@
 
 El circuito completo está reproducido en Tinkercad Circuits, lo que permite probar el control en el navegador y mostrarlo sin el hardware. Tinkercad no tiene todas las piezas del invernadero, así que se usan equivalentes con el mismo comportamiento eléctrico. El código de la simulación es [`tinkercad/invernadero_tinkercad.ino`](../tinkercad/invernadero_tinkercad.ino).
 
+**Diseño:** [Fabulous Densor-Waasa en Tinkercad](https://www.tinkercad.com/things/ckFm3G2RFop-fabulous-densor-waasa/editel?returnTo=https%3A%2F%2Fwww.tinkercad.com%2Fdashboard&sharecode=71Am6oTvSApW-1JlmwnVTSqvfnvpZX53oYo7AuHwRA4)
+
+![Circuito completo en Tinkercad](img/tinkercad-circuito.png)
+
+Arriba a la izquierda, el relé y el motor de la bomba; abajo, los del ventilador. En el centro, el Arduino, la protoboard y los sensores; a la derecha, la pantalla.
+
 ## Piezas equivalentes
 
 | Pieza real | Pieza en Tinkercad | Motivo |

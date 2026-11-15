@@ -6,7 +6,7 @@ Aplicación web en React 19 que se conecta al Arduino por USB con Web Serial. Co
 
 ## Uso
 
-`dist/` contiene la aplicación construida. Se abre `dist/index.html` en Chrome o Edge (versión 89 o posterior), o se sirve desde GitHub Pages. Servida por HTTP o HTTPS se puede instalar como aplicación de escritorio y abre sin internet gracias a su service worker.
+`dist/` contiene la aplicación construida. Se abre `dist/index.html` en Chrome o Edge (versión 89 o posterior), o se usa la versión publicada en [https://maiwxzs.github.io/greenhouse-iot-firmware/](https://maiwxzs.github.io/greenhouse-iot-firmware/), que el flujo `.github/workflows/pages.yml` construye y publica en cada cambio de `app/`. Servida por HTTP o HTTPS se puede instalar como aplicación de escritorio y abre sin internet gracias a su service worker.
 
 ## Arquitectura
 

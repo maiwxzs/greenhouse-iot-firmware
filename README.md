@@ -79,7 +79,7 @@ La aplicación está hecha en React y se ejecuta en Chrome o Edge, que pueden ha
 - **Ajustes, calibración y consola** de comandos.
 - **Modo demostración:** un simulador con el mismo protocolo que el firmware, a velocidad real o ×20.
 
-Para abrirla, ejecuta `app/dist/index.html` en Chrome o Edge, o publícala con GitHub Pages (*Settings → Pages → Deploy from a branch → main / root*); queda en `https://maiwxzs.github.io/greenhouse-iot-firmware/app/dist/`. Detalles técnicos en [`app/README.md`](app/README.md).
+Está publicada en **[https://maiwxzs.github.io/greenhouse-iot-firmware/](https://maiwxzs.github.io/greenhouse-iot-firmware/)**, con un modo de demostración que funciona sin Arduino. También se abre localmente con `app/dist/index.html`. GitHub Actions la vuelve a publicar en cada cambio de `app/`. Detalles técnicos en [`app/README.md`](app/README.md).
 
 ## Maqueta
 
@@ -105,7 +105,11 @@ La lógica de decisión (`Logica.h`) no depende de Arduino y está cubierta por 
 
 ## Simulación en Tinkercad
 
-[`tinkercad/invernadero_tinkercad.ino`](tinkercad/invernadero_tinkercad.ino) es el mismo control adaptado a las piezas disponibles en Tinkercad Circuits (TMP36, interruptor deslizante en lugar del contacto del HR202, relés con transistor y motores DC). Piezas, cableado y diferencias con el equipo real: [`docs/tinkercad.md`](docs/tinkercad.md).
+[`tinkercad/invernadero_tinkercad.ino`](tinkercad/invernadero_tinkercad.ino) es el mismo control adaptado a las piezas disponibles en Tinkercad Circuits (TMP36, interruptor deslizante en lugar del contacto del HR202, relés con transistor y motores DC). Piezas, cableado, pruebas y diferencias con el equipo real: [`docs/tinkercad.md`](docs/tinkercad.md).
+
+[Abrir el circuito en Tinkercad](https://www.tinkercad.com/things/ckFm3G2RFop-fabulous-densor-waasa/editel?returnTo=https%3A%2F%2Fwww.tinkercad.com%2Fdashboard&sharecode=71Am6oTvSApW-1JlmwnVTSqvfnvpZX53oYo7AuHwRA4)
+
+![Circuito en Tinkercad](docs/img/tinkercad-circuito.png)
 
 ## Estructura del repositorio
 

@@ -10,7 +10,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ### Cambiado
 - Simulación de Tinkercad: avisos en la pantalla con duración mínima de lectura, páginas de 4 s, refresco de la pantalla cinco veces por segundo y línea de estado del monitor solo cuando algo cambia.
-- Documentación de Tinkercad con los terminales del relé, el código de colores, los nombres de las piezas y las 13 pruebas verificadas.
+- Documentación de Tinkercad con los terminales del relé, el código de colores, los nombres de las piezas, las 13 pruebas verificadas, el enlace al diseño y una captura del circuito.
+
+### Agregado
+- Publicación automática de la aplicación en GitHub Pages.
 
 ## [3.0.0] - 2026-11-14
 
