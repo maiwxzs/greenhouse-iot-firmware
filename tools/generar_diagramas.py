@@ -62,7 +62,7 @@ DIAGRAMAS = {
     end
     subgraph PC["Computador"]
         direction TB
-        APP["Aplicación React<br/>Web Serial"]
+        APP["Aplicación de escritorio<br/>Electron y React"]
         IDB[("IndexedDB<br/>historial y eventos")]
     end
     DS -->|"1-Wire, D2"| CTRL
@@ -213,7 +213,7 @@ flowchart TD
     autonumber
     actor U as Usuario
     participant DB as IndexedDB
-    participant APP as Aplicación React
+    participant APP as Aplicación de escritorio
     participant A as Arduino
     participant E as EEPROM
     U->>APP: Conectar Arduino y elegir el puerto
@@ -239,12 +239,17 @@ flowchart TD
 
     "aplicacion-arquitectura": """flowchart LR
     ARD["Arduino Uno<br/>USB serie"]
-    subgraph NAV["Navegador Chrome o Edge, instalable como aplicación"]
+    subgraph APLI["Aplicación de escritorio Invernadero IoT (Electron, Windows)"]
         direction LR
+        subgraph MAIN["Proceso principal, electron/"]
+            direction TB
+            VEN["main.cjs<br/>ventana y permisos"]
+            PUE["Elección del puerto<br/>select-serial-port"]
+        end
         subgraph HOOKS["Conexión"]
             direction TB
-            CON["useConexion<br/>Web Serial"]
-            SIM["Simulador<br/>modo demostración"]
+            CON["useConexion<br/>Web Serial, 9600 baudios"]
+            SIM["Simulador<br/>demostración"]
         end
         subgraph LIB["Datos, src/lib"]
             direction TB
@@ -252,22 +257,25 @@ flowchart TD
             REG["registro.js<br/>eventos, minutos, estadísticas"]
             ALM["almacen.js"]
         end
-        subgraph IDB["IndexedDB, en el disco"]
+        subgraph IDB["IndexedDB, en el equipo"]
             direction TB
             LEC[("lecturas<br/>2 días")]
             MIN[("minutos<br/>180 días")]
             EVT[("eventos<br/>180 días")]
         end
-        subgraph UI["Componentes React"]
+        subgraph UI["Interfaz React"]
             direction TB
             APPC["App"]
-            ESC["Escena animada"]
-            INS["Instrumentos"]
-            PES["Pestañas<br/>En vivo, Historial, Eventos,<br/>Ajustes, Calibración, Consola"]
+            ESC["Maqueta interactiva<br/>escena/"]
+            TAB["Tablero y réplica LCD"]
+            SEC["Gráficas, Historial, Eventos,<br/>Ajustes, Calibración, Consola"]
+            SEL["SelectorPuerto"]
         end
-        SW["Service worker<br/>abre sin internet"]
     end
     ARD <-->|"líneas JSON y comandos"| CON
+    PUE -->|"lista de puertos"| SEL
+    SEL -->|"puerto elegido"| PUE
+    PUE -.->|"permiso"| CON
     SIM -.->|"mismo protocolo"| PROT
     CON --> PROT
     PROT --> APPC
@@ -277,15 +285,15 @@ flowchart TD
     ALM --> MIN
     ALM --> EVT
     APPC --> ESC
-    APPC --> INS
-    APPC --> PES
-    PES -->|"consulta el historial"| ALM
-    SW -.-> APPC
+    APPC --> TAB
+    APPC --> SEC
+    SEC -->|"consulta el historial"| ALM
+    VEN -.-> APPC
     class ARD control
-    class CON,SIM,SW interfaz
+    class CON,SIM,VEN,PUE interfaz
     class PROT,REG,ALM app
     class LEC,MIN,EVT dato
-    class APPC,ESC,INS,PES actuador
+    class APPC,ESC,TAB,SEC,SEL actuador
 """ + PALETA,
 
     "protocolo-mensajes": """classDiagram

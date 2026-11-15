@@ -1,36 +1,39 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  LuActivity, LuCalendarDays, LuFastForward, LuFlaskConical, LuGlassWater, LuInfo, LuListChecks, LuMonitorDown,
+  LuActivity, LuCalendarDays, LuFastForward, LuFlaskConical, LuGlassWater, LuHouse, LuInfo, LuListChecks,
   LuPlay, LuPlugZap, LuSlidersHorizontal, LuSquare, LuTerminal, LuUnplug,
 } from "react-icons/lu";
-import Escena from "./componentes/Escena.jsx";
-import PanelEstado from "./componentes/PanelEstado.jsx";
-import Instrumentos from "./componentes/Instrumentos.jsx";
+import Inicio from "./componentes/Inicio.jsx";
 import EnVivo from "./componentes/EnVivo.jsx";
 import Historial from "./componentes/Historial.jsx";
 import Eventos from "./componentes/Eventos.jsx";
 import Ajustes from "./componentes/Ajustes.jsx";
 import Calibracion from "./componentes/Calibracion.jsx";
 import Consola from "./componentes/Consola.jsx";
+import SelectorPuerto from "./componentes/SelectorPuerto.jsx";
 import { soportaSerie, useConexion } from "./hooks/useConexion.js";
-import { useInstalar } from "./hooks/useInstalar.js";
 import { Almacen, RETENCION_LECTURAS_DIAS, RETENCION_MINUTOS_DIAS } from "./lib/almacen.js";
 import { Registro, SEGUNDOS_POR_MUESTRA } from "./lib/registro.js";
 import { CAUDAL_L_POR_S, comandoHoraActual, interpretarLinea, textoConfirmacion } from "./lib/protocolo.js";
 import { generarHistorialDemo } from "./lib/simulador.js";
 
-const PESTANAS = [
-  ["vivo", "En vivo", LuActivity], ["historial", "Historial", LuCalendarDays], ["eventos", "Eventos", LuListChecks],
-  ["ajustes", "Ajustes", LuSlidersHorizontal], ["calibracion", "Calibración", LuFlaskConical], ["consola", "Consola", LuTerminal],
+const VISTAS = [
+  ["inicio", "Invernadero", LuHouse], ["graficas", "Gráficas", LuActivity], ["historial", "Historial", LuCalendarDays],
+  ["eventos", "Eventos", LuListChecks], ["ajustes", "Ajustes", LuSlidersHorizontal], ["calibracion", "Calibración", LuFlaskConical],
+  ["consola", "Consola", LuTerminal],
 ];
+
+const PROVOCAR = [["calor", "Calor"], ["critico", "Calor extremo"], ["frio", "Enfriar"], ["seco", "Secar el suelo"], ["humedo", "Aire húmedo"], ["vaciar", "Vaciar el tanque"]];
 
 function Logo() {
   return (
-    <svg className="logo" viewBox="0 0 40 40" aria-hidden="true">
-      <rect width="40" height="40" rx="9" fill="#1E2D24" />
-      <path d="M8 31 V18 L20 9 L32 18 V31" fill="none" stroke="#C59A55" strokeWidth="2.6" strokeLinejoin="round" />
-      <path d="M20 30 C20 25 20 22 20 19" stroke="#7FC198" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M20 25 C15 25 13 21 13 19 C17 19 20 21 20 25 Z M20 22 C25 22 27 18 27 16 C23 16 20 18 20 22 Z" fill="#7FC198" />
+    <svg className="logo" viewBox="0 0 64 64" aria-hidden="true">
+      <rect width="64" height="64" rx="13" fill="#234A3D" />
+      <path d="M0 16H64M0 32H64M0 48H64M16 0V64M32 0V64M48 0V64" stroke="#D6ECDE" strokeOpacity=".12" />
+      <path d="M11 52V27L32 12L53 27V52Z" fill="#CFE6F0" fillOpacity=".14" stroke="#E2C48E" strokeWidth="3.6" strokeLinejoin="round" />
+      <path d="M32 49C32 42 32 37 32 31" stroke="#7FD39B" strokeWidth="3.2" strokeLinecap="round" />
+      <path d="M32 42C25 42 22 36 22 33C28 33 32 36 32 42ZM32 37C39 37 42 31 42 28C36 28 32 31 32 37Z" fill="#7FD39B" />
+      <rect x="9" y="50" width="46" height="4" rx="1" fill="#C8A97E" />
     </svg>
   );
 }
@@ -38,7 +41,7 @@ function Logo() {
 let idLinea = 0;
 
 export default function App() {
-  const [pestana, setPestana] = useState("vivo");
+  const [vista, setVista] = useState("inicio");
   const [cfg, setCfg] = useState(null);
   const [ultima, setUltima] = useState(null);
   const [vivo, setVivo] = useState([]);
@@ -47,7 +50,11 @@ export default function App() {
   const [consola, setConsola] = useState([]);
   const [avisos, setAvisos] = useState([]);
   const [version, setVersion] = useState(0);
-  const [latido, setLatido] = useState(false);
+  const [latido, setLatido] = useState(0);
+  const [envio, setEnvio] = useState(0);
+  const [pagina, setPagina] = useState(0);
+  const [sel, setSel] = useState(null);
+  const [foco, setFoco] = useState(null);
   const [aguaHoy, setAguaHoy] = useState(null);
   const [uso, setUso] = useState(null);
   const aireDesde = useRef(null);
@@ -65,6 +72,12 @@ export default function App() {
 
   const alConsola = useCallback((texto, clase = "") => {
     setConsola((c) => [...c.slice(-299), { id: ++idLinea, texto, clase }]);
+  }, []);
+
+  // La pantalla de la caja alterna sus dos páginas cada 4 s, como el firmware
+  useEffect(() => {
+    const id = setInterval(() => setPagina((p) => 1 - p), 4000);
+    return () => clearInterval(id);
   }, []);
 
   // Registro ligado al almacén activo (real o demostración)
@@ -85,7 +98,7 @@ export default function App() {
     return () => { vigente = false; registro.current?.reiniciar(); registro.current = null; };
   }, [almacen]);
 
-  // Cada minuto: recarga del historial, agua de hoy y uso del disco
+  // Cada minuto: recarga del historial, agua de hoy y espacio en disco
   useEffect(() => {
     const id = setInterval(() => setVersion((x) => x + 1), 60000);
     return () => clearInterval(id);
@@ -107,10 +120,10 @@ export default function App() {
         if (!registro.current) return;
         const l = registro.current.agregar(msg);
         setUltima((anterior) => {
-          if (!anterior || anterior.aire !== l.aire) aireDesde.current = l.t;
+          if (!anterior || anterior.aire_alta !== l.aire_alta) aireDesde.current = l.t;
           return l;
         });
-        setLatido((x) => !x);
+        setLatido((x) => x + 1);
         if (!msg.hora_sync && !sincronizado.current) { sincronizado.current = true; enviar(comandoHoraActual(), false); }
         return;
       }
@@ -126,6 +139,7 @@ export default function App() {
     alCambiarModo: (m, info) => {
       if (m === "desconectado") {
         sincronizado.current = false;
+        setUltima(null);
         registro.current?.anotar("conexion", info?.perdida ? "Se perdió la conexión USB" : "Desconectado", info?.perdida ? "alarma" : "neutro");
         if (info?.perdida) avisar("Se perdió la conexión con el Arduino", true);
       }
@@ -136,6 +150,7 @@ export default function App() {
   const enviar = useCallback(async (texto, anotar = true) => {
     const ok = await conexion.enviar(texto);
     if (!ok) return;
+    setEnvio((x) => x + 1);
     alConsola("> " + texto, "tx");
     if (anotar) registro.current?.anotar("comando", texto, "neutro");
   }, [conexion, alConsola]);
@@ -167,80 +182,87 @@ export default function App() {
 
   const activo = modo !== "desconectado";
   const t = ultima;
-  const { puedeInstalar, instalar } = useInstalar();
+  const acciones = { conectar: conectarUsb, demo: iniciarDemo, rellenar: conexion.rellenarDemo };
 
   return (
-    <div className="app">
-      <header className="encabezado">
+    <div className="app" data-alarma={+(t?.alarma === 1)}>
+      <nav className="riel" aria-label="Secciones">
         <div className="marca">
           <Logo />
           <div>
-            <h1>Invernadero piloto</h1>
-            <p>Centro de monitoreo del Arduino Uno</p>
+            <strong>Invernadero IoT</strong>
+            <span>Centro de control</span>
           </div>
         </div>
-        <div className="conexion">
-          <span className="pastilla" data-modo={modo} role="status">
-            <i />{{ desconectado: "Sin conexión", usb: "Arduino conectado por USB", demo: "Demostración" }[modo]}
-          </span>
+        <ul className="secciones">
+          {VISTAS.map(([id, txt, Icono]) => (
+            <li key={id}>
+              <button type="button" aria-current={vista === id ? "page" : undefined} onClick={() => setVista(id)}>
+                <Icono /> {txt}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="conexion" data-modo={modo}>
+          <p className="conexion-estado" role="status"><i />{{ desconectado: "Sin conexión", usb: "Arduino por USB", demo: "Demostración" }[modo]}</p>
           {modo === "desconectado" && (
             <>
-              <button className="boton" type="button" onClick={conectarUsb} disabled={!soportaSerie}><LuPlugZap /> Conectar Arduino</button>
+              <button className="boton" type="button" onClick={conectarUsb} disabled={!soportaSerie}><LuPlugZap /> Conectar</button>
               <button className="boton sec" type="button" onClick={iniciarDemo}><LuPlay /> Demostración</button>
             </>
           )}
           {modo === "usb" && <button className="boton sec" type="button" onClick={conexion.desconectar}><LuUnplug /> Desconectar</button>}
-          {modo === "demo" && (
-            <>
-              <div className="segmentado" role="group" aria-label="Velocidad de la demostración">
-                {[1, 20].map((v) => (
-                  <button key={v} type="button" aria-pressed={conexion.velocidadDemo === v} onClick={() => conexion.setVelocidadDemo(v)}>
-                    {v === 1 ? "Tiempo real" : <><LuFastForward style={{ verticalAlign: "-2px" }} /> ×20</>}
-                  </button>
-                ))}
-              </div>
-              <button className="boton sec" type="button" onClick={conexion.rellenarDemo}><LuGlassWater /> Rellenar tanque</button>
-              <button className="boton sec" type="button" onClick={conexion.detenerDemo}><LuSquare /> Detener</button>
-            </>
-          )}
-          {puedeInstalar && <button className="boton sec" type="button" onClick={instalar}><LuMonitorDown /> Instalar aplicación</button>}
+          {modo === "demo" && <button className="boton sec" type="button" onClick={conexion.detenerDemo}><LuSquare /> Terminar demostración</button>}
         </div>
-      </header>
+        <p className="riel-pie">
+          Versión {__VERSION__}{cfg?.version ? ` · firmware ${cfg.version}` : ""}
+          {uso && <><br />{(uso.usado / 1048576).toFixed(1)} MB de historial en este equipo</>}
+        </p>
+      </nav>
 
-      {!soportaSerie && (
-        <p className="aviso"><LuInfo /> Este navegador no puede comunicarse por USB. Abre la aplicación en Google Chrome o Microsoft Edge
-          de escritorio. La demostración funciona en cualquier navegador.</p>
-      )}
+      <main className="vista">
+        {modo === "demo" && (
+          <div className="banda-demo" role="toolbar" aria-label="Controles de la demostración">
+            <span>Demostración</span>
+            <div className="segmentado" role="group" aria-label="Velocidad">
+              {[1, 20].map((v) => (
+                <button key={v} type="button" aria-pressed={conexion.velocidadDemo === v} onClick={() => conexion.setVelocidadDemo(v)}>
+                  {v === 1 ? "Tiempo real" : <><LuFastForward /> ×20</>}
+                </button>
+              ))}
+            </div>
+            <span className="separador" />
+            <span>Provocar:</span>
+            {PROVOCAR.map(([id, txt]) => <button key={id} type="button" className="boton chico sec" onClick={() => conexion.provocarDemo(id)}>{txt}</button>)}
+            <button type="button" className="boton chico sec" onClick={conexion.rellenarDemo}><LuGlassWater /> Rellenar</button>
+          </div>
+        )}
+        {!soportaSerie && (
+          <p className="aviso"><LuInfo /> Este entorno no puede comunicarse por USB. La demostración funciona igual.</p>
+        )}
 
-      <section className="principal" data-alarma={+(t?.alarma === 1)}>
-        <Escena t={t} latido={latido} />
-        <PanelEstado t={t} modo={modo} enviar={enviar} />
-      </section>
+        {vista === "inicio" ? (
+          <Inicio eventos={eventos} verEventos={() => setVista("eventos")} t={t} cfg={cfg} vivo={vivo} modo={modo} latido={latido} envio={envio} pagina={pagina}
+            sel={sel} setSel={setSel} foco={foco} setFoco={setFoco} enviar={enviar} acciones={acciones}
+            aireDesde={aireDesde.current} aguaHoy={aguaHoy} soportaSerie={soportaSerie} />
+        ) : (
+          <section className="hoja" key={vista}>
+            <h1>{VISTAS.find((v) => v[0] === vista)[1]}</h1>
+            {vista === "graficas" && <EnVivo vivo={vivo} cfg={cfg} />}
+            {vista === "historial" && <Historial almacen={almacen} version={version} />}
+            {vista === "eventos" && <Eventos eventos={eventos} nuevos={nuevos} />}
+            {vista === "ajustes" && <Ajustes cfg={cfg} activo={activo} enviar={enviar} />}
+            {vista === "calibracion" && <Calibracion t={t} cfg={cfg} activo={activo} enviar={enviar} />}
+            {vista === "consola" && <Consola lineas={consola} activo={activo} enviar={enviar} />}
+            <p className="nota-hoja">
+              Historial guardado en este equipo: lecturas de {RETENCION_LECTURAS_DIAS} días y resúmenes de {RETENCION_MINUTOS_DIAS} días.
+              {modo === "demo" && " Los datos de la demostración se guardan aparte de los reales."}
+            </p>
+          </section>
+        )}
+      </main>
 
-      <Instrumentos t={t} cfg={cfg} aireDesde={aireDesde.current} aguaHoy={aguaHoy} />
-
-      <section className="panel">
-        <div className="pestanas" role="tablist">
-          {PESTANAS.map(([id, txt, Icono]) => (
-            <button key={id} role="tab" type="button" aria-selected={pestana === id} onClick={() => setPestana(id)}><Icono /> {txt}</button>
-          ))}
-        </div>
-        <div className="contenido" role="tabpanel" key={pestana}>
-          {pestana === "vivo" && <EnVivo vivo={vivo} cfg={cfg} />}
-          {pestana === "historial" && <Historial almacen={almacen} version={version} />}
-          {pestana === "eventos" && <Eventos eventos={eventos} nuevos={nuevos} />}
-          {pestana === "ajustes" && <Ajustes cfg={cfg} activo={activo} enviar={enviar} />}
-          {pestana === "calibracion" && <Calibracion t={t} cfg={cfg} activo={activo} enviar={enviar} />}
-          {pestana === "consola" && <Consola lineas={consola} activo={activo} enviar={enviar} />}
-        </div>
-      </section>
-
-      <footer className="pie-app">
-        <span>Aplicación {__VERSION__}{cfg?.version ? `, firmware ${cfg.version}` : ""}</span>
-        <span>Historial guardado en este computador: lecturas de {RETENCION_LECTURAS_DIAS} días y resúmenes de {RETENCION_MINUTOS_DIAS} días</span>
-        {uso && <span>Espacio usado: {(uso.usado / 1048576).toFixed(1)} MB</span>}
-        {modo === "demo" && <span>Los datos de la demostración se guardan aparte de los reales</span>}
-      </footer>
+      <SelectorPuerto />
 
       <div className="avisos" aria-live="polite">
         {avisos.map((a) => <div key={a.id} className={`toast${a.error ? " error" : ""}`}>{a.texto}</div>)}

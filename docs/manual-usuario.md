@@ -47,26 +47,47 @@ El módulo HR202 tiene además su propio LED verde, que se enciende junto con el
 - **Pulsación corta con la alarma sonando:** silencia la alarma 10 minutos.
 - **Pulsación de 3 s:** silencia la alarma 10 minutos.
 
-## Aplicación de monitoreo
+## Aplicación de escritorio
 
-La aplicación se abre en **Google Chrome o Microsoft Edge**, que son los navegadores con acceso al puerto USB. Se abre el archivo `app/dist/index.html` o la dirección publicada del proyecto, [https://maiwxzs.github.io/greenhouse-iot-firmware/](https://maiwxzs.github.io/greenhouse-iot-firmware/). Con el ícono de instalar de la barra de direcciones queda como aplicación de escritorio y abre sin internet.
+### Instalar
 
-**Conectar:** el botón **Conectar Arduino** muestra los puertos disponibles; el del Arduino suele llamarse «USB-SERIAL CH340». El Arduino se reinicia al abrir el puerto, así que las lecturas tardan unos segundos. Al conectarse, la aplicación pone en hora el reloj del invernadero. Solo un programa a la vez puede usar el puerto: si aparece ocupado, hay que cerrar el Monitor Serie del Arduino IDE.
+1. En la sección [Releases](https://github.com/maiwxzs/greenhouse-iot-firmware/releases) del repositorio se descarga `Invernadero-IoT-<versión>-Windows.exe`.
+2. Al abrirlo, Windows SmartScreen puede mostrar «Windows protegió su PC», porque el instalador no tiene firma digital: **Más información → Ejecutar de todas formas**.
+3. El instalador pregunta la carpeta y deja un acceso directo **Invernadero IoT** en el escritorio y en el menú Inicio.
 
-**Demostración:** sin el Arduino, **Demostración** inicia un simulador que habla el mismo protocolo. Corre a velocidad real o ×20 y tiene un botón para rellenar el tanque. Sus datos se guardan aparte de los reales.
+Funciona en Windows 10 y 11 de 64 bits y no necesita internet. Si el Arduino es un clon con chip CH340, Windows necesita el controlador CH340 para reconocer el puerto.
 
-### Pestañas
+### Conectar
 
-| Pestaña | Contenido |
+**Conectar**, en la parte inferior del menú lateral, abre la lista de puertos USB y marca el del Arduino; en los clones suele llamarse «USB-SERIAL CH340». El Arduino se reinicia al abrir el puerto, así que las lecturas tardan unos segundos. Al conectarse, la aplicación pone en hora el reloj del invernadero. Solo un programa a la vez puede usar el puerto: si aparece ocupado, hay que cerrar el Monitor Serie del Arduino IDE.
+
+**Demostración** inicia un Arduino simulado que habla el mismo protocolo. Corre a velocidad real o ×20, y una barra superior permite provocar calor, calor extremo, sequía, aire húmedo o tanque vacío, y rellenar el tanque, para ver cómo reacciona el control. Sus datos se guardan aparte de los reales.
+
+### La maqueta
+
+La sección **Invernadero** muestra la maqueta tal como está construida, animada con las lecturas: gira el ventilador, corre el agua, cambian la tierra y las hojas, baja el tanque, aparece rocío con el aire húmedo y el zumbador emite ondas con la alarma. Cada lectura que llega viaja como un punto amarillo por el cable USB; cada comando, como un punto celeste en sentido contrario.
+
+Al tocar una pieza aparece su ficha: qué es, cómo está conectada, qué está haciendo y, cuando corresponde, un botón para actuar (regar, silenciar la alarma o rellenar el tanque en la demostración). Al tocar la caja se levanta la tapa y se ve el interior, con los LEDs de los relés y el LED TX del Arduino.
+
+![Caja abierta en la aplicación](img/aplicacion-caja.png)
+
+A la derecha, el tablero muestra el estado, las cuatro lecturas con su traza de los últimos 30 minutos y una réplica de la pantalla LCD de la caja. Debajo de la maqueta, la bitácora muestra lo último que pasó.
+
+### Secciones
+
+| Sección | Contenido |
 |---|---|
-| En vivo | Temperatura y humedad del suelo de los últimos 30 min, y franjas de bomba, ventilador y aire húmedo |
+| Invernadero | Maqueta interactiva, lecturas, pantalla LCD, acciones y bitácora |
+| Gráficas | Temperatura y humedad del suelo de los últimos 30 min, y franjas de bomba, ventilador y aire húmedo |
 | Historial | Hoy, 7 días o 30 días: estadísticas, gráficas por minuto y resumen diario. Exportación a CSV |
 | Eventos | Cambios de estado, riegos, ventilador, aire húmedo, alarmas, comandos y conexiones |
 | Ajustes | Umbrales de temperatura y suelo, y botón para poner en hora el reloj |
 | Calibración | Sonda de suelo y sonda del tanque, con la lectura cruda en vivo |
 | Consola | Comandos escritos a mano y todas las líneas que envía el Arduino |
 
-El historial se llena mientras la aplicación está conectada. Guarda las lecturas detalladas de los últimos 2 días y un resumen por minuto de los últimos 180 días. Los CSV usan punto y coma y coma decimal, el formato que espera Excel en español.
+![Historial](img/aplicacion-historial.png)
+
+El historial se llena mientras la aplicación está conectada y se guarda en el equipo: las lecturas detalladas de los últimos 2 días y un resumen por minuto de los últimos 180 días. Los CSV usan punto y coma y coma decimal, el formato que espera Excel en español.
 
 ## Ajustes
 
@@ -123,5 +144,5 @@ Las lecturas crudas (0–1023) se ven en los campos `adc_suelo` y `adc_agua` de 
 | Siempre indica «Tanque vacío» | Sonda fuera del agua o sin calibrar | Sumergir los cables y usar `CAL TANQUE` |
 | El Arduino se reinicia al arrancar la bomba | El puerto USB no entrega la corriente | Usar un cargador de 5 V y 2 A |
 | La pantalla no muestra nada | Contraste o dirección I2C | Girar el potenciómetro azul del módulo I2C; el mensaje de arranque indica si se detectó |
-| La aplicación no muestra el puerto | Navegador o controlador | Usar Chrome o Edge, instalar el controlador CH340 y cerrar el Monitor Serie |
+| La aplicación no muestra el puerto | Controlador o cable | Instalar el controlador CH340, probar otro cable USB (algunos solo cargan) y cerrar el Monitor Serie |
 | La hora de la pantalla está mal | Reloj sin sincronizar | Conectar la aplicación o enviar `HORA hh:mm` |

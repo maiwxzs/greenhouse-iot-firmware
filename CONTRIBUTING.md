@@ -23,7 +23,8 @@ pio run                # compila para el Arduino Uno, con y sin LCD
 ```bash
 cd app
 npm install
-npm run build          # genera app/dist, que también se sube al repositorio
+npm start              # construye la interfaz y abre la aplicación de escritorio
+npm run instalador     # genera el instalador de Windows en app/release
 ```
 
 GitHub Actions repite estas verificaciones en cada push; el resultado y el uso de memoria del Arduino aparecen en la pestaña **Actions**.
@@ -42,7 +43,9 @@ GitHub Actions repite estas verificaciones en cada push; el resultado y el uso d
 
 ## Convenciones de la aplicación
 
-- Componentes en `app/src/componentes/`, lógica sin interfaz en `app/src/lib/`.
+- Componentes en `app/src/componentes/`, la maqueta en `app/src/escena/` y la lógica sin interfaz en `app/src/lib/`.
+- La maqueta usa las medidas de `docs/maqueta.md`; si cambia la maqueta física, se actualizan las constantes de `Escena.jsx`.
+- El proceso principal de Electron (`app/electron/`) solo abre la ventana y resuelve el puerto USB; la lógica vive en la interfaz.
 - Todo cambio en el protocolo se aplica a la vez en el firmware, en `protocolo.js`, en `simulador.js` y en `docs/protocolo-serie.md`.
 - Cada animación representa un dato real del invernadero.
 

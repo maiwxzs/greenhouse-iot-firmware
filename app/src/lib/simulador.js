@@ -43,6 +43,19 @@ export class Simulador {
     this.emitir("# Tanque rellenado (demostración)");
   }
 
+  // Provoca una situación para ver cómo reacciona el control (solo en la demostración)
+  provocar(tipo) {
+    const m = this.m;
+    if (tipo === "calor") m.temp = Math.max(m.temp, (this.cfg.temp_max ?? 30) + 2.5);
+    if (tipo === "critico") m.temp = Math.max(m.temp, (this.cfg.temp_crit ?? 35) + 0.8);
+    if (tipo === "frio") m.temp = Math.min(m.temp, (this.cfg.temp_max ?? 30) - 6);
+    if (tipo === "seco") m.suelo = Math.min(m.suelo, (this.cfg.suelo_min ?? 30) - 6);
+    if (tipo === "humedo") m.hr = 92;
+    if (tipo === "vaciar") m.tanqueL = 0.04;
+    this.emitir(`# Demostración: ${tipo}`);
+    this.paso();
+  }
+
   paso() {
     const c = this.cfg, m = this.m;
     const dt = 2 * this.velocidad;            // segundos simulados por paso

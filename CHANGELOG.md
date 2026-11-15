@@ -2,6 +2,23 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versiones según [SemVer](https://semver.org/lang/es/).
 
+## [3.1.0] - 2026-11-15
+
+### Agregado
+- Aplicación de escritorio para Windows con Electron: instalador `.exe`, acceso directo, selector propio del puerto USB y permisos limitados al puerto serie.
+- Maqueta interactiva en la aplicación, con las medidas y materiales de la maqueta física: cada pieza muestra su ficha y su acción, la caja se abre para ver la electrónica y cada animación responde a un dato (ventilador con inercia y flujo de aire, riego con gotas, tierra y hojas según la humedad, calor, rocío, LEDs, zumbador, luz según la hora y datos que viajan por el cable USB).
+- Réplica de la pantalla LCD con matriz de puntos de 5×8 que muestra las mismas páginas que el firmware.
+- Tablero con trazas de 30 minutos y bitácora de los últimos eventos.
+- Botones de la demostración para provocar calor, sequía, aire húmedo o tanque vacío.
+- Integración continua que construye el instalador en Windows, abre la aplicación empaquetada como prueba de humo y adjunta el instalador a cada versión en Releases.
+
+### Cambiado
+- Nueva identidad visual de la aplicación: tapete de corte, materiales de la maqueta y hojas de datos; navegación lateral.
+- Documentación de la aplicación, manual de usuario y diagrama de arquitectura como aplicación de escritorio.
+
+### Eliminado
+- Versión web en GitHub Pages, instalación desde el navegador y service worker.
+
 ## [3.0.1] - 2026-11-15
 
 ### Corregido
@@ -11,9 +28,6 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 ### Cambiado
 - Simulación de Tinkercad: avisos en la pantalla con duración mínima de lectura, páginas de 4 s, refresco de la pantalla cinco veces por segundo y línea de estado del monitor solo cuando algo cambia.
 - Documentación de Tinkercad con los terminales del relé, el código de colores, los nombres de las piezas, las 13 pruebas verificadas, el enlace al diseño y una captura del circuito.
-
-### Agregado
-- Publicación automática de la aplicación en GitHub Pages.
 
 ## [3.0.0] - 2026-11-14
 

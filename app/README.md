@@ -1,45 +1,94 @@
-# Aplicación de monitoreo
+# Aplicación de escritorio
 
-Aplicación web en React 19 que se conecta al Arduino por USB con Web Serial. Complementa al firmware: el Arduino solo mide, decide y envía una línea JSON cada 2 s; la aplicación guarda el historial, calcula estadísticas y contiene la ayuda de los comandos, de modo que nada de eso ocupa la RAM del Arduino.
+**Invernadero IoT** es la aplicación de Windows que acompaña al firmware. Se conecta al Arduino por USB, dibuja la maqueta con los datos en vivo y guarda el historial en el equipo. El Arduino solo mide, decide y envía una línea JSON cada 2 s; las gráficas, las estadísticas, la ayuda de los comandos y el historial viven en la aplicación, de modo que no ocupan la RAM del Arduino.
 
-![Aplicación](../docs/img/aplicacion.png)
+![Aplicación de escritorio](../docs/img/aplicacion.png)
 
-## Uso
+## Instalación
 
-`dist/` contiene la aplicación construida. Se abre `dist/index.html` en Chrome o Edge (versión 89 o posterior), o se usa la versión publicada en [https://maiwxzs.github.io/greenhouse-iot-firmware/](https://maiwxzs.github.io/greenhouse-iot-firmware/), que el flujo `.github/workflows/pages.yml` construye y publica en cada cambio de `app/`. Servida por HTTP o HTTPS se puede instalar como aplicación de escritorio y abre sin internet gracias a su service worker.
+| Requisito | Valor |
+|---|---|
+| Sistema | Windows 10 u 11 de 64 bits |
+| Espacio | Unos 300 MB instalada, más el historial (del orden de 10 MB por día de datos) |
+| Controlador | CH340 si el Arduino es un clon; los originales no lo necesitan |
+
+El instalador `Invernadero-IoT-<versión>-Windows.exe` está en la sección [Releases](https://github.com/maiwxzs/greenhouse-iot-firmware/releases) del repositorio. Deja un acceso directo en el escritorio y en el menú Inicio, y se desinstala desde **Configuración → Aplicaciones**. El instalador no está firmado digitalmente: Windows SmartScreen pide confirmación la primera vez (**Más información → Ejecutar de todas formas**).
+
+## Pantallas
+
+| Sección | Contenido |
+|---|---|
+| Invernadero | Maqueta interactiva, tablero de lecturas con trazas de 30 min, réplica de la pantalla LCD, acciones y bitácora |
+| Gráficas | Temperatura y humedad del suelo de los últimos 30 min, y franjas de bomba, ventilador y aire húmedo |
+| Historial | Hoy, 7 o 30 días: estadísticas, gráficas por minuto, resumen diario y exportación a CSV |
+| Eventos | Cambios de estado, riegos, ventilador, aire húmedo, alarmas, comandos y conexiones |
+| Ajustes | Umbrales de temperatura y suelo, y puesta en hora del reloj del invernadero |
+| Calibración | Sonda de suelo y sonda del tanque, con la lectura cruda en vivo |
+| Consola | Comandos escritos a mano y todas las líneas que envía el Arduino |
+
+## Maqueta interactiva
+
+La maqueta se dibuja en proyección oblicua con las medidas de [`docs/maqueta.md`](../docs/maqueta.md): base de 470 × 310 mm, invernadero de balso y acrílico, caja de MDF con la electrónica y tanque de 1 L. Cada animación corresponde a un dato de la telemetría:
+
+| En la maqueta | Dato |
+|---|---|
+| El ventilador acelera y frena con inercia; líneas de aire entran por la rejilla del fondo y salen por el ventilador | `ventilador` |
+| El agua corre por la manguera, caen gotas sobre la maceta y el agua del tanque se ondula; la bomba vibra | `bomba` |
+| La tierra se oscurece con la humedad; las hojas caen y amarillean con el suelo seco | `hum_suelo` |
+| El aire del invernadero se tiñe de naranja con el calor | `temp_c` |
+| Aparecen gotas de rocío en el acrílico; se enciende el LED del módulo HR202 | `aire_alta` |
+| LED rojo fijo con el suelo seco e intermitente con el tanque vacío; LED azul con el aire húmedo | `suelo`, `agua`, `aire_alta` |
+| El zumbador emite ondas y el marco de la maqueta pulsa en rojo | `alarma` |
+| La pantalla de la caja escribe sus dos páginas | Todos los campos, igual que el firmware |
+| La luz de la habitación sigue la hora del invernadero | `hora` |
+| Puntos amarillos viajan por el cable USB hacia el computador con cada lectura; puntos celestes viajan hacia la caja con cada comando | Comunicación serie |
+
+Cada pieza se puede tocar. Su ficha dice qué es, cómo está conectada y qué está haciendo, y ofrece la acción que le corresponde: regar desde la bomba, silenciar desde el zumbador o rellenar el tanque en la demostración. Al tocar la caja, la tapa se levanta y las paredes se vuelven translúcidas para mostrar el Arduino, la protoboard y los dos relés, con el LED TX que destella en cada lectura y el LED de cada relé. Con «reducir movimiento» activado en Windows, las animaciones continuas se desactivan.
+
+![Caja abierta con la electrónica visible](../docs/img/aplicacion-caja.png)
 
 ## Arquitectura
 
 ![Arquitectura de la aplicación](../docs/diagramas/aplicacion-arquitectura.png)
 
 ```
-src/
-├── main.jsx               Punto de entrada; registra el service worker
-├── App.jsx                Estado global, conexión, registro y pestañas
-├── estilos.css            Paleta, tipografía y animaciones
-├── hooks/
-│   ├── useConexion.js     Web Serial (lectura por líneas, escritura de comandos) y modo demostración
-│   └── useInstalar.js     Instalación como aplicación (PWA)
-├── lib/
-│   ├── protocolo.js       Interpreta cada línea, textos de los estados, lista de comandos
-│   ├── registro.js        Ventana en vivo, eventos, resumen por minuto y por día
-│   ├── almacen.js         IndexedDB: lecturas, minutos y eventos, con retención
-│   └── simulador.js       Simulador del Arduino con el mismo protocolo
-└── componentes/
-    ├── Escena.jsx         Invernadero animado con SVG
-    ├── PanelEstado.jsx    Estado general, hora y acciones rápidas
-    ├── Instrumentos.jsx   Indicadores de temperatura, suelo, aire y tanque
-    ├── Grafica.jsx        Gráficas de tiempo (d3-scale y d3-shape) y franjas de actuadores
-    ├── EnVivo.jsx, Historial.jsx, Eventos.jsx
-    └── Ajustes.jsx, Calibracion.jsx, Consola.jsx
+app/
+├── electron/
+│   ├── main.cjs            Ventana, permisos y elección del puerto serie
+│   └── preload.cjs         Puente mínimo con la interfaz (solo el puerto)
+├── src/
+│   ├── main.jsx            Punto de entrada
+│   ├── App.jsx             Estado global, conexión, registro y navegación
+│   ├── estilos.css         Tapete de corte, materiales de la maqueta y hojas de datos
+│   ├── escena/
+│   │   ├── proyeccion.js   Proyección oblicua en mm y planos de dibujo de cada cara
+│   │   ├── Escena.jsx      Maqueta: invernadero, tanque, caja y animaciones
+│   │   ├── Lcd.jsx         Réplica de la LCD 16x2 con matriz de puntos de 5x8
+│   │   └── piezas.js       Ficha de cada pieza
+│   ├── hooks/useConexion.js   Web Serial (lectura por líneas, escritura de comandos) y demostración
+│   ├── lib/
+│   │   ├── protocolo.js    Interpreta cada línea, textos de los estados, lista de comandos
+│   │   ├── registro.js     Ventana en vivo, eventos, resumen por minuto y por día
+│   │   ├── almacen.js      IndexedDB: lecturas, minutos y eventos, con retención
+│   │   └── simulador.js    Arduino simulado con el mismo protocolo
+│   └── componentes/        Inicio, Gráficas, Historial, Eventos, Ajustes, Calibración, Consola, SelectorPuerto
+├── public/                 Íconos
+├── recursos/icon.png       Ícono del instalador
+└── build.mjs               Construcción de la interfaz con esbuild
 ```
+
+### Conexión con el Arduino
+
+La interfaz usa la API Web Serial de Chromium a 9600 baudios. Electron no trae el diálogo de puertos del navegador, así que el proceso principal escucha `select-serial-port`, envía la lista de puertos a la interfaz por el puente `window.escritorio` y espera la respuesta. El componente `SelectorPuerto` muestra la lista, preselecciona el puerto con identificador de Arduino (0x2341 o 0x2A03), CH340 (0x1A86), FTDI (0x0403) o CP210x (0x10C4) y se actualiza si se conecta o desconecta un dispositivo mientras está abierto. El proceso principal solo concede el permiso de puertos serie; cualquier otro permiso se rechaza.
 
 ### Flujo de datos
 
 1. `useConexion` lee el puerto, separa las líneas y las entrega a `protocolo.interpretarLinea`.
-2. Cada `tel` actualiza la vista y pasa por `Registro`, que compara con la lectura anterior para generar eventos (riego, ventilador, aire húmedo, alarma, tanque, sensor) y acumula el minuto en curso.
-3. `Registro` mantiene en memoria solo los últimos 30 minutos para las gráficas en vivo. Escribe en IndexedDB en lotes de 15 lecturas y un resumen al cerrar cada minuto.
-4. `Almacen` borra al abrir lo que supera la retención.
+2. Cada `tel` actualiza la vista y pasa por `Registro`, que la compara con la lectura anterior para generar eventos y acumula el minuto en curso.
+3. `Registro` mantiene en memoria solo los últimos 30 minutos para las trazas y las gráficas en vivo. Escribe en IndexedDB en lotes de 15 lecturas y un resumen al cerrar cada minuto.
+4. `Almacen` borra lo que supera la retención.
+
+Las animaciones continuas (ventilador, gotas, aire y datos por el cable) corren en un único `requestAnimationFrame` que modifica el SVG directamente, sin volver a renderizar React en cada cuadro.
 
 ### Almacenamiento
 
@@ -49,26 +98,29 @@ src/
 | `minutos` | Promedio, mínimo y máximo de temperatura y suelo; fracción de tiempo de bomba, ventilador, aire húmedo y alarma | 180 días |
 | `eventos` | Estados, riegos, ventilador, aire, alarmas, comandos y conexiones | 180 días |
 
-Los datos reales se guardan en la base `invernadero` y los de la demostración en `invernadero-demo`. Un día completo ocupa del orden de 10 MB entre lecturas y minutos.
+Los datos reales se guardan en la base `invernadero` y los de la demostración en `invernadero-demo`, dentro de la carpeta de datos de la aplicación en el perfil del usuario de Windows.
 
-### Animaciones
+### Seguridad
 
-Cada animación de la escena representa un dato real: el ventilador gira con inercia cuando el relé 2 está activo; el agua corre por la manguera y caen gotas cuando la bomba funciona; las hojas se marchitan con el suelo seco y la tierra se oscurece con la humedad; el nivel del tanque baja; el termómetro sigue a la temperatura; el cielo cambia con la hora del invernadero; y el zumbador emite ondas cuando la alarma suena. Con «reducir movimiento» activado en el sistema operativo, las animaciones se desactivan.
+La ventana carga solo los archivos locales de `dist/`, con aislamiento de contexto, sin integración de Node en la interfaz, con el proceso de la interfaz en sandbox y una política de seguridad de contenido que no admite scripts externos. No navega a otros sitios y la aplicación no se conecta a internet.
 
 ## Desarrollo
 
 ```bash
 cd app
 npm install
-npm run dev      # compila, observa cambios y sirve en http://localhost:8000
-npm run build    # genera dist/ minificado
+npm start            # construye la interfaz y abre la aplicación
+npm run dev          # interfaz en http://localhost:8000 con recarga (Chrome o Edge)
+npm run instalador   # genera release/Invernadero-IoT-<versión>-Windows.exe
 ```
 
-La construcción usa esbuild y produce un único `assets/app.js` en formato IIFE, que funciona también abierto como archivo local. La huella de la compilación se inserta en `index.html` y en `sw.js` para renovar la caché en cada versión.
+GitHub Actions (`.github/workflows/aplicacion.yml`) construye el instalador en Windows en cada cambio de `app/`, abre la aplicación empaquetada en modo de prueba (`--prueba`) para comprobar que la interfaz y la maqueta cargan, y deja el `.exe` como artefacto. Al publicar una etiqueta `vX.Y.Z`, adjunta el instalador a una versión en Releases.
 
 | Dependencia | Uso |
 |---|---|
+| electron | Ventana de escritorio y acceso al puerto serie |
+| electron-builder | Instalador NSIS para Windows |
 | react, react-dom | Interfaz |
-| d3-scale, d3-shape, d3-interpolate | Escalas y trazos de las gráficas, colores de la escena |
+| d3-scale, d3-shape, d3-interpolate | Escalas y trazos de las gráficas, colores de la maqueta |
 | react-icons | Íconos Lucide |
-| esbuild | Construcción |
+| esbuild | Construcción de la interfaz |

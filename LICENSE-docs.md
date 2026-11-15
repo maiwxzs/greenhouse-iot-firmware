@@ -21,10 +21,11 @@ El firmware usa estas librerías, que se descargan aparte y conservan sus propia
 | LiquidCrystal_I2C | Frank de Brabander / Marco Schwartz | Ver la librería |
 | Arduino core para AVR | Arduino | LGPL 2.1 |
 
-La aplicación usa estas dependencias, que se incluyen en `app/dist` al construirla:
+La aplicación de escritorio usa estas dependencias, que se incluyen en el instalador:
 
 | Paquete | Licencia |
 |---|---|
 | React y React DOM | MIT |
 | d3-scale, d3-shape, d3-interpolate | ISC |
 | react-icons (íconos Lucide) | MIT (paquete), ISC (íconos Lucide) |
+| Electron (incluye Chromium y Node.js) | MIT (Electron); Chromium y Node.js con sus propias licencias, listadas en el instalador |

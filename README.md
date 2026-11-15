@@ -1,10 +1,11 @@
 # Smart Greenhouse IoT
 
-[![Firmware y aplicación](https://github.com/maiwxzs/greenhouse-iot-firmware/actions/workflows/firmware.yml/badge.svg)](https://github.com/maiwxzs/greenhouse-iot-firmware/actions/workflows/firmware.yml)
+[![Firmware](https://github.com/maiwxzs/greenhouse-iot-firmware/actions/workflows/firmware.yml/badge.svg)](https://github.com/maiwxzs/greenhouse-iot-firmware/actions/workflows/firmware.yml)
+[![Aplicación de escritorio](https://github.com/maiwxzs/greenhouse-iot-firmware/actions/workflows/aplicacion.yml/badge.svg)](https://github.com/maiwxzs/greenhouse-iot-firmware/actions/workflows/aplicacion.yml)
 [![Código: MIT](https://img.shields.io/badge/c%C3%B3digo-MIT-2E7A4C.svg)](LICENSE)
 [![Documentación: CC BY 4.0](https://img.shields.io/badge/docs-CC%20BY%204.0-2370AE.svg)](LICENSE-docs.md)
 
-Invernadero a escala controlado por un Arduino Uno. El sistema mide la temperatura del aire, la humedad del aire, la humedad del suelo y el nivel del tanque. Con esas lecturas ventila y riega por sí solo. Informa en el sitio con una pantalla LCD, dos LEDs y un zumbador, y en el computador con una aplicación de monitoreo conectada por USB.
+Invernadero a escala controlado por un Arduino Uno. El sistema mide la temperatura del aire, la humedad del aire, la humedad del suelo y el nivel del tanque. Con esas lecturas ventila y riega por sí solo. Informa en el sitio con una pantalla LCD, dos LEDs y un zumbador, y en el computador con una aplicación de escritorio conectada por USB.
 
 ![Aplicación de monitoreo en modo demostración](docs/img/aplicacion.png)
 
@@ -68,18 +69,20 @@ Cada diagrama está en SVG, PNG y draw.io en [`docs/diagramas/`](docs/diagramas/
 
 Los valores son los de fábrica y se cambian con comandos como `TEMP 28` o `SUELOMIN 35` ([protocolo serie](docs/protocolo-serie.md)). El umbral de humedad del aire se fija con el potenciómetro del propio módulo HR202.
 
-## Aplicación de monitoreo
+## Aplicación de escritorio
 
-La aplicación está hecha en React y se ejecuta en Chrome o Edge, que pueden hablar con el puerto USB mediante Web Serial. Se instala como aplicación de escritorio y abre sin conexión a internet.
+![Aplicación de escritorio](docs/img/aplicacion.png)
 
-- **Escena animada** del invernadero: el ventilador gira con inercia, el agua corre por la manguera, la planta se marchita si el suelo está seco, el cielo sigue la hora del invernadero y el zumbador vibra cuando suena la alarma.
-- **En vivo:** gráficas de los últimos 30 minutos y franjas de cuándo funcionó cada actuador.
-- **Historial:** lecturas de los últimos 2 días y resúmenes por minuto de 180 días, guardados en IndexedDB. Estadísticas diarias de temperatura, riegos, agua usada, ventilación y alarmas, y exportación a CSV.
-- **Eventos:** cambios de estado, riegos, alarmas y comandos, con filtros.
+**Invernadero IoT** es una aplicación para Windows 10 y 11 que se instala con un instalador `.exe` y se conecta al Arduino por el cable USB. Complementa al firmware: el Arduino mide, decide y envía una lectura cada 2 s; la aplicación muestra, guarda y analiza, sin ocupar memoria del Arduino.
+
+- **Maqueta interactiva:** la misma maqueta del repositorio, con sus medidas y materiales, se mueve con los datos reales. El ventilador gira con inercia y el aire cruza la planta, el agua corre por la manguera y gotea sobre la maceta, la tierra cambia de color con la humedad, las hojas caen con el suelo seco, el tanque baja, aparece rocío en el acrílico con el aire húmedo y el zumbador emite ondas con la alarma. Cada pieza se toca para ver qué es, cómo está conectada, qué hace en ese momento y, cuando corresponde, para actuar: regar, silenciar la alarma o levantar la tapa de la caja para ver el Arduino, la protoboard y los relés.
+- **Réplica de la pantalla LCD:** muestra exactamente lo que escribe la pantalla de la caja, con la misma matriz de puntos y las mismas dos páginas.
+- **Tablero:** estado del invernadero, lecturas con su traza de los últimos 30 minutos y bitácora de lo último que pasó. Cada lectura resalta su pieza en la maqueta.
+- **Gráficas, historial y eventos:** lecturas de los últimos 2 días y resúmenes por minuto de 180 días guardados en el equipo, estadísticas diarias y exportación a CSV.
 - **Ajustes, calibración y consola** de comandos.
-- **Modo demostración:** un simulador con el mismo protocolo que el firmware, a velocidad real o ×20.
+- **Demostración:** un Arduino simulado con el mismo protocolo, a velocidad real o ×20, con botones para provocar calor, sequía, aire húmedo o tanque vacío y ver cómo reacciona el control.
 
-Está publicada en **[https://maiwxzs.github.io/greenhouse-iot-firmware/](https://maiwxzs.github.io/greenhouse-iot-firmware/)**, con un modo de demostración que funciona sin Arduino. También se abre localmente con `app/dist/index.html`. GitHub Actions la vuelve a publicar en cada cambio de `app/`. Detalles técnicos en [`app/README.md`](app/README.md).
+El instalador se descarga de la sección [**Releases**](https://github.com/maiwxzs/greenhouse-iot-firmware/releases) del repositorio. GitHub Actions lo construye con Electron en cada cambio de `app/`. Instalación y uso en el [manual de usuario](docs/manual-usuario.md#aplicación-de-escritorio); detalles técnicos en [`app/README.md`](app/README.md).
 
 ## Maqueta
 
@@ -101,7 +104,7 @@ pio device monitor     # 9600 baudios
 
 Con el Arduino IDE: copia `firmware/src/main.cpp` como `Invernadero/Invernadero.ino`, junto con los tres archivos de `firmware/include/`, e instala las librerías **OneWire**, **DallasTemperature** y **LiquidCrystal I2C**.
 
-La lógica de decisión (`Logica.h`) no depende de Arduino y está cubierta por pruebas unitarias. En el Arduino Uno el firmware usa 1342 de 2048 bytes de RAM (65.5 %) y 25 508 de 32 256 bytes de flash (79.1 %); sin pantalla, 52.4 % y 65.1 %. GitHub Actions corre esas pruebas, compila el firmware con y sin pantalla, informa el uso de memoria y construye la aplicación en cada cambio.
+La lógica de decisión (`Logica.h`) no depende de Arduino y está cubierta por pruebas unitarias. En el Arduino Uno el firmware usa 1342 de 2048 bytes de RAM (65.5 %) y 25 508 de 32 256 bytes de flash (79.1 %); sin pantalla, 52.4 % y 65.1 %. GitHub Actions corre esas pruebas, compila el firmware con y sin pantalla e informa el uso de memoria en cada cambio.
 
 ## Simulación en Tinkercad
 
@@ -122,9 +125,10 @@ greenhouse-iot-firmware/
 │   │   └── GreenhouseCore.hpp   Sensores, actuadores, pantalla y controlador
 │   ├── src/main.cpp             setup() y loop()
 │   └── test/test_logica/        Pruebas unitarias
-├── app/                         Aplicación de monitoreo (React)
-│   ├── src/                     Componentes, hooks y lógica de datos
-│   └── dist/                    Aplicación construida, lista para abrir
+├── app/                         Aplicación de escritorio (Electron + React)
+│   ├── electron/                Proceso principal y acceso al puerto USB
+│   ├── src/                     Interfaz: maqueta interactiva, vistas y datos
+│   └── recursos/                Ícono del instalador
 ├── tinkercad/                   Versión para Tinkercad Circuits
 ├── hardware/
 │   ├── circuits/                Esquema y documentación de conexiones
@@ -154,7 +158,7 @@ greenhouse-iot-firmware/
 | [Lista de materiales](hardware/bom/BOM.md) | Electrónica y maqueta, con especificaciones |
 | [Maqueta](docs/maqueta.md) | Materiales, dimensiones, construcción y cableado |
 | [Tinkercad](docs/tinkercad.md) | Circuito simulado y diferencias con el real |
-| [Aplicación](app/README.md) | Arquitectura, almacenamiento y construcción |
+| [Aplicación de escritorio](app/README.md) | Arquitectura, maqueta interactiva, almacenamiento y construcción del instalador |
 | [Diagramas](docs/diagramas/README.md) | Índice y edición |
 | [Herramientas](tools/README.md) | Cómo se generan los archivos de diseño |
 | [Contribuir](CONTRIBUTING.md) | Flujo de trabajo y convenciones |

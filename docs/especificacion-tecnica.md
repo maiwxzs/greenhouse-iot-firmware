@@ -4,7 +4,7 @@
 |---|---|
 | **Proyecto** | Smart Greenhouse IoT, invernadero automatizado a escala |
 | **Firmware** | 3.0.0 |
-| **Aplicación** | 3.0.0 |
+| **Aplicación** | 3.1.0 |
 | **Controlador** | Arduino Uno R3 (ATmega328P a 16 MHz, 5 V, 2 KB de RAM, 32 KB de flash, 1 KB de EEPROM) |
 | **Alimentación** | USB del Arduino, 5 V y 500 mA como máximo |
 
@@ -18,12 +18,12 @@ Un sistema embebido de bajo costo que:
 
 1. Mide de forma continua la temperatura del aire, la humedad del aire, la humedad del suelo y el nivel del tanque.
 2. Decide por sí solo cuándo ventilar y cuándo regar, con reglas configurables.
-3. Informa en el sitio con pantalla, LEDs y zumbador, y en el computador con una aplicación de monitoreo.
+3. Informa en el sitio con pantalla, LEDs y zumbador, y en el computador con una aplicación de escritorio.
 4. Conserva un historial de lecturas y eventos para analizar el comportamiento del cultivo.
 
 ## 3. Alcance
 
-**Incluye:** firmware del Arduino, aplicación de monitoreo por USB, maqueta física, simulación en Tinkercad, pruebas automáticas y documentación técnica y de usuario.
+**Incluye:** firmware del Arduino, aplicación de escritorio para Windows conectada por USB, maqueta física, simulación en Tinkercad, pruebas automáticas y documentación técnica y de usuario.
 
 **No incluye:** conexión inalámbrica, servidor ni acceso remoto. El invernadero funciona completo sin computador; la aplicación agrega visualización, historial y configuración.
 
@@ -43,7 +43,7 @@ Un sistema embebido de bajo costo que:
 | RF-08 | Indicar el estado en el sitio | LCD 16×2, LED rojo, LED azul y zumbador |
 | RF-09 | Riego manual y silencio de la alarma | Pulsador: corto riega o silencia, largo silencia |
 | RF-10 | Cambiar los umbrales sin reprogramar | Comandos serie; ajustes en EEPROM con validación y checksum |
-| RF-11 | Ver, guardar y exportar datos en el computador | Aplicación React con Web Serial, IndexedDB y exportación CSV |
+| RF-11 | Ver, guardar y exportar datos en el computador | Aplicación de escritorio (Electron y React) con Web Serial, IndexedDB y exportación CSV |
 
 ### No funcionales
 
@@ -79,7 +79,7 @@ Todas las decisiones (histéresis, riego, reparto de energía, reloj, interpreta
 
 ![Arquitectura de la aplicación](diagramas/aplicacion-arquitectura.png)
 
-La aplicación recibe cada línea JSON del Arduino, la interpreta, detecta eventos y la acumula por minuto. Escribe en IndexedDB en lotes de 15 lecturas para no tocar el disco cada 2 s. El detalle está en [`app/README.md`](../app/README.md).
+La aplicación de escritorio (Electron con una interfaz en React) recibe cada línea JSON del Arduino por Web Serial, la interpreta, detecta eventos y la acumula por minuto. Escribe en IndexedDB en lotes de 15 lecturas para no tocar el disco cada 2 s. El detalle está en [`app/README.md`](../app/README.md).
 
 ## 6. Control
 
@@ -155,9 +155,9 @@ El peor caso dura lo que un pulso de riego (5 s) y queda por debajo de los 500 m
 | Nivel | Cobertura | Ejecución |
 |---|---|---|
 | Unitarias (25) | Histéresis, riego, ventilación, ciclo de la bomba, reparto de energía, reloj, comandos y validación de ajustes | `cd firmware && pio test -e native` |
-| Compilación | Firmware para el Uno con y sin LCD, uso de memoria y construcción de la aplicación | GitHub Actions en cada cambio |
+| Compilación | Firmware para el Uno con y sin LCD, uso de memoria e instalador de la aplicación para Windows | GitHub Actions en cada cambio |
 | Simulación | Circuito completo con piezas equivalentes | Tinkercad ([documentación](tinkercad.md)) |
-| Aplicación | Modo demostración con el mismo protocolo del firmware | `app/dist/index.html` |
+| Aplicación | Modo demostración con el mismo protocolo del firmware; prueba de humo del instalador en la integración continua | Aplicación instalada, `npm start` |
 | Banco | Cada sensor y actuador con el circuito real | Tabla de pruebas del [manual de usuario](manual-usuario.md#pruebas-de-funcionamiento) |
 
 ## 10. Limitaciones

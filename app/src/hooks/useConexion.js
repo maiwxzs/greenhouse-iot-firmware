@@ -104,8 +104,9 @@ export function useConexion({ alRecibirLinea, alCambiarModo }) {
   }, []);
 
   const rellenarDemo = useCallback(() => sim.current?.rellenar(), []);
+  const provocarDemo = useCallback((tipo) => sim.current?.provocar(tipo), []);
 
   useEffect(() => () => { sim.current?.detener(); }, []);
 
-  return { modo, conectar, desconectar, iniciarDemo, detenerDemo, enviar, velocidadDemo, setVelocidadDemo, rellenarDemo };
+  return { modo, conectar, desconectar, iniciarDemo, detenerDemo, enviar, velocidadDemo, setVelocidadDemo, rellenarDemo, provocarDemo };
 }

@@ -1,4 +1,4 @@
-// Construye la aplicación en app/dist (archivos estáticos, sin servidor).
+// Construye la interfaz de la aplicación en app/dist; Electron la carga desde ahí.
 //   node build.mjs            compila una vez (minificado)
 //   node build.mjs --servir   compila, observa cambios y sirve en http://localhost:8000
 import * as esbuild from "esbuild";
@@ -33,9 +33,6 @@ function escribirIndex() {
   const huella = createHash("sha1").update(css + js).digest("hex").slice(0, 8);
   const html = readFileSync("src/index.html", "utf8").replaceAll("{{HUELLA}}", huella).replaceAll("{{VERSION}}", version);
   writeFileSync("dist/index.html", html);
-  // El service worker usa la huella para renovar la caché en cada versión
-  const sw = readFileSync("public/sw.js", "utf8").replace("{{HUELLA}}", huella);
-  writeFileSync("dist/sw.js", sw);
 }
 
 if (servir) {
