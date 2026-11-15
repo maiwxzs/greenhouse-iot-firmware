@@ -41,6 +41,7 @@ export class Simulador {
   rellenar() {
     this.m.tanqueL = CAPACIDAD_TANQUE_L * 0.95;
     this.emitir("# Tanque rellenado (demostración)");
+    this.paso();
   }
 
   // Provoca una situación para ver cómo reacciona el control (solo en la demostración)

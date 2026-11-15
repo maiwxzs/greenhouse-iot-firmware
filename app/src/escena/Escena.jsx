@@ -1,21 +1,14 @@
 // Escena interactiva: la maqueta del invernadero dibujada en proyección oblicua, con las mismas
 // medidas de docs/maqueta.md. Cada animación responde a un dato de la telemetría y cada pieza se puede tocar.
 import { memo, useEffect, useMemo, useRef } from "react";
-import { interpolateRgb } from "d3-interpolate";
 import { P, pts, ruta, prisma, circulo, envolvente, unir, caraFrente, caraLado, caraArriba } from "./proyeccion.js";
+import { Z0, ALERO, CUMBRERA, BX0, BX1, BY0, BY1, BZ1, TX0, TX1, TY0, TY1, MACETA, TRAMOS_MANGUERA, USB, HOJAS } from "./geometria.js";
+import { Motor } from "./motor.js";
 import { PuntosLcd, textoLcd } from "./Lcd.jsx";
 import { PIEZAS } from "./piezas.js";
 
 export const VB = { x: -50, y: -428, w: 700, h: 452 };
 
-const Z0 = 6;                       // cara superior de la base
-const ALERO = Z0 + 220, CUMBRERA = Z0 + 310;
-const BX0 = 318, BX1 = 468, BY0 = 5, BY1 = 205, BZ1 = Z0 + 75;
-const TX0 = 330, TX1 = 450, TY0 = 212, TY1 = 297;
-const NIVEL_MAX_MM = 85;
-const BOQUILLA = [105, 155, Z0 + 198];
-const MANGUERA = [[352, 255, Z0 + 34], [352, 255, Z0 + 205], [305, 255, Z0 + 205], [105, 255, Z0 + 205], [105, 155, Z0 + 205], [105, 155, Z0 + 199]];
-const USB = [[421, 205, Z0 + 13], [421, 209, Z0 + 13], [476, 209, Z0 + 12], [492, 214, 1], [540, 214, 0], [600, 190, 0], [700, 160, 0]];
 
 const BALSA = ["#E2C48E", "#EED8AE", "#C7A56C"];
 const MDF = ["#D8BE8F", "#E7D3AC", "#BC9F6E"];
@@ -25,8 +18,6 @@ const MDF_BASE = ["#C8A97E", "#D6BB93", "#A98B60"];
 const planoFrente = (y) => caraFrente(0, y, 0);
 const planoLado = (x) => caraLado(x, 0, 0);
 
-const lerp = (a, b, k) => a + (b - a) * k;
-const limitar = (v, a, b) => Math.max(a, Math.min(b, v));
 
 function Prisma({ b, c, className, opacidad }) {
   const f = prisma(...b);
@@ -68,53 +59,44 @@ const ROCIO = Array.from({ length: 46 }, (_, i) => {
   return { x: 20 + (a - Math.floor(a)) * 270, z: Z0 + 14 + (b - Math.floor(b)) * 190, r: 0.9 + ((i * 7) % 5) * 0.35, d: (i % 9) * 0.35 };
 });
 
-function Planta({ suelo }) {
-  // Albahaca en la maceta: con el suelo seco las hojas caen y amarillean
-  const seca = limitar((40 - suelo) / 35, 0, 1);
-  const color = interpolateRgb("#3E9A5C", "#A9A048")(seca * 0.8);
-  const oscuro = interpolateRgb("#2C7446", "#8A8238")(seca * 0.8);
-  const hojas = [
-    { z: 112, x: 103, lado: -1, l: 40, sube: 20 }, { z: 116, x: 107, lado: 1, l: 42, sube: 16 },
-    { z: 132, x: 104, lado: -1, l: 38, sube: 26 }, { z: 138, x: 106, lado: 1, l: 40, sube: 24 },
-    { z: 152, x: 104, lado: -1, l: 32, sube: 34 }, { z: 156, x: 106, lado: 1, l: 33, sube: 30 },
-    { z: 168, x: 105, lado: -1, l: 22, sube: 50 }, { z: 170, x: 105, lado: 1, l: 22, sube: 46 },
-  ];
+// Albahaca: el motor mueve cada hoja (resortes) y cambia su color con la humedad del suelo
+const Planta = memo(function Planta({ r }) {
   return (
     <g transform={planoFrente(150)} className="planta">
-      <path d={`M105 ${-(Z0 + 90)} C103 ${-(Z0 + 120)} 107 ${-(Z0 + 150)} 105 ${-(Z0 + 176)}`} stroke="#2F6B45" strokeWidth="3.4" fill="none" />
-      <path d={`M104 ${-(Z0 + 112)} C96 ${-(Z0 + 130)} 92 ${-(Z0 + 140)} 90 ${-(Z0 + 150)} M106 ${-(Z0 + 118)} C114 ${-(Z0 + 134)} 118 ${-(Z0 + 142)} 121 ${-(Z0 + 152)}`} stroke="#2F6B45" strokeWidth="2" fill="none" />
-      {hojas.map((h, i) => {
-        // Ángulo en el plano del frente: negativo levanta la punta, positivo la deja caer
-        const angulo = h.lado * (-h.sube + seca * (50 + h.sube * 0.6));
-        const L = h.l, A = L * 0.42;
-        return (
-          <g key={i} transform={`translate(${h.x} ${-(Z0 + h.z)}) rotate(${angulo})`} className="hoja">
-            <path d={`M0 0 C${h.lado * L * 0.25} ${-A} ${h.lado * L * 0.8} ${-A * 0.9} ${h.lado * L} 0
-                      C${h.lado * L * 0.8} ${A * 0.7} ${h.lado * L * 0.25} ${A * 0.8} 0 0Z`} fill={i % 2 ? color : oscuro} />
-            <path d={`M0 0 Q${h.lado * L * 0.5} -1.5 ${h.lado * L * 0.94} 0`} stroke="#1F5534" strokeWidth=".8" fill="none" opacity=".5" />
-          </g>
-        );
-      })}
+      <g ref={r("planta")}>
+        <path d={`M105 ${-(Z0 + 90)} C103 ${-(Z0 + 120)} 107 ${-(Z0 + 150)} 105 ${-(Z0 + 176)}`} stroke="#2F6B45" strokeWidth="3.4" fill="none" />
+        <path d={`M104 ${-(Z0 + 112)} C96 ${-(Z0 + 130)} 92 ${-(Z0 + 140)} 90 ${-(Z0 + 150)} M106 ${-(Z0 + 118)} C114 ${-(Z0 + 134)} 118 ${-(Z0 + 142)} 121 ${-(Z0 + 152)}`} stroke="#2F6B45" strokeWidth="2" fill="none" />
+        {HOJAS.map((h, i) => {
+          const L = h.l, A = L * 0.42;
+          return (
+            <g key={i} ref={r("hojas", i)} transform={`translate(${h.x} ${-(Z0 + h.z)}) rotate(${-h.lado * h.sube})`} className="hoja">
+              <path ref={r("hojasForma", i)} d={`M0 0 C${h.lado * L * 0.25} ${-A} ${h.lado * L * 0.8} ${-A * 0.9} ${h.lado * L} 0
+                        C${h.lado * L * 0.8} ${A * 0.7} ${h.lado * L * 0.25} ${A * 0.8} 0 0Z`} fill={i % 2 ? "#3E9A5C" : "#2C7446"} />
+              <path d={`M0 0 Q${h.lado * L * 0.5} -1.5 ${h.lado * L * 0.94} 0`} stroke="#1F5534" strokeWidth=".8" fill="none" opacity=".5" />
+            </g>
+          );
+        })}
+      </g>
     </g>
   );
-}
+});
 
-function Maceta({ suelo }) {
-  const tierra = interpolateRgb("#A98762", "#3B2414")(limitar(suelo / 90, 0, 1));
+const Maceta = memo(function Maceta({ r }) {
   const cuerpo = useMemo(() => unir(envolvente([...circulo(105, 155, Z0, 40), ...circulo(105, 155, Z0 + 87, 53)])), []);
   const borde = useMemo(() => unir(envolvente([...circulo(105, 155, Z0 + 87, 57), ...circulo(105, 155, Z0 + 95, 57)])), []);
   const boca = useMemo(() => unir(circulo(105, 155, Z0 + 95, 57)), []);
-  const sup = useMemo(() => unir(circulo(105, 155, Z0 + 91, 51)), []);
+  const sup = useMemo(() => unir(circulo(105, 155, MACETA.zTierra, MACETA.radioTierra)), []);
   return (
     <g>
       <polygon points={cuerpo} fill="url(#barro)" />
       <polygon points={borde} fill="#C0825A" />
       <polygon points={boca} fill="#CC8E66" />
-      <polygon points={sup} fill={tierra} className="tierra" />
-      {suelo > 75 && <polygon points={sup} fill="url(#brillo-humedo)" opacity={limitar((suelo - 75) / 20, 0, 0.7)} />}
+      <polygon points={sup} ref={r("tierra")} fill="#6E5034" />
+      <polygon points={sup} ref={r("brilloTierra")} fill="url(#brillo-humedo)" opacity="0" />
+      <g transform={caraArriba(0, 0, MACETA.zTierra + 0.3)} ref={r("ondasTierra")} className="ondas-tierra" />
     </g>
   );
-}
+});
 
 function SondaSuelo() {
   return (
@@ -129,14 +111,15 @@ function SondaSuelo() {
   );
 }
 
-function Ventilador({ aspas }) {
+function Ventilador({ r }) {
   // En la pared izquierda (x = 5), centrado en y = 150 y a 165 mm de altura
   const cy = -(Z0 + 165);
   return (
     <g transform={planoLado(6)}>
       <rect x="130" y={cy - 20} width="40" height="40" rx="3" fill="#222624" />
       <circle cx="150" cy={cy} r="18" fill="#141716" />
-      <g ref={aspas}>
+      <circle cx="150" cy={cy} r="16.5" ref={r("desenfoque")} className="desenfoque" opacity="0" />
+      <g ref={r("aspas")}>
         {[0, 51, 103, 154, 206, 257, 309].map((a) => (
           <path key={a} d={`M150 ${cy} q5 -4 4 -16 q-6 1 -9 7z`} fill="#3A4142" transform={`rotate(${a} 150 ${cy})`} />
         ))}
@@ -179,9 +162,19 @@ function Rocio({ visible }) {
 }
 
 // Invernadero: estructura de balso, acrílico y todo lo que hay adentro
-function Invernadero({ t, aspas, capas }) {
-  const suelo = t?.hum_suelo ?? 45;
-  const calor = limitar(((t?.temp_c ?? 24) - 27) / 7, 0, 0.85);
+// Tramo de manguera: tubo translúcido, agua que la llena y corriente que avanza
+function Manguera({ i, r }) {
+  const d = ruta(TRAMOS_MANGUERA[i]);
+  return (
+    <>
+      <path d={d} className="manguera" />
+      <path d={d} className="agua-llena" ref={r("mangueraLlena", i)} strokeDasharray="0 1000" />
+      <path d={d} className="agua-flujo" ref={r("mangueraFlujo", i)} opacity="0" />
+    </>
+  );
+}
+
+function Invernadero({ t, r, capas }) {
   const silueta = useMemo(() => unir(envolvente([
     P(5, 5, Z0), P(305, 5, Z0), P(305, 5, ALERO), P(155, 5, CUMBRERA), P(5, 5, ALERO),
     P(5, 305, Z0), P(305, 305, Z0), P(305, 305, ALERO), P(155, 305, CUMBRERA), P(5, 305, ALERO),
@@ -201,9 +194,9 @@ function Invernadero({ t, aspas, capas }) {
       <Prisma b={[5, 15, Z0, 15, 295, Z0 + 10]} c={BALSA} className="estructura" />
       {poste(5, 145)}
       <Prisma b={[5, 15, ALERO - 10, 15, 295, ALERO]} c={BALSA} className="estructura" />
-      <g {...capas("ventilador")}><Ventilador aspas={aspas} /></g>
+      <g {...capas("ventilador")}><Ventilador r={r} /></g>
       {/* Interior */}
-      <g {...capas("suelo")}><Maceta suelo={suelo} /><SondaSuelo /><Planta suelo={suelo} /></g>
+      <g {...capas("suelo")}><Maceta r={r} /><SondaSuelo /><Planta r={r} /></g>
       <path d={ruta([[138, 155, Z0 + 92], [150, 120, Z0 + 1], [300, 47, Z0 + 1]])} className="cable" stroke="#3FA45B" />
       <path d={ruta([[5, 150, Z0 + 145], [9, 150, Z0 + 2], [10, 22, Z0 + 2], [300, 22, Z0 + 2], [305, 44, Z0 + 15]])} className="cable" stroke="#ECECE4" />
       <g {...capas("temperatura")}>
@@ -214,14 +207,16 @@ function Invernadero({ t, aspas, capas }) {
       <path d={ruta([[300, 160, Z0 + 105], [300, 160, Z0 + 3], [300, 50, Z0 + 3], [305, 47, Z0 + 14]])} className="cable" stroke="#E9C93E" />
       {/* Manguera interior y boquilla */}
       <g {...capas("bomba")}>
-        <path d={ruta(MANGUERA.slice(2))} className="manguera" />
-        <path d={ruta(MANGUERA.slice(2))} className="agua-manguera" />
+        <Manguera i={2} r={r} />
         <polygon points={unir(envolvente([...circulo(105, 155, Z0 + 194, 4, 12), ...circulo(105, 155, Z0 + 206, 4, 12)]))} fill="#1B1D1C" />
       </g>
-      <g className="gotas" ref={capas.gotas} />
-      <g className="aire-flujo" ref={capas.aireFlujo} />
-      {/* Calor: el aire del invernadero se tiñe y ondula */}
-      <polygon points={silueta} className="calor" style={{ opacity: calor }} />
+      <g className="gotas" ref={r("gotas")} />
+      <g className="salpicas" ref={r("salpicas")} />
+      <g className="aire-flujo" ref={r("aire")} />
+      {/* Calor: el aire del invernadero se tiñe y suben ondas desde el piso */}
+      <polygon points={silueta} className="calor" ref={r("velo")} opacity="0" />
+      <g className="ondas-calor" ref={r("ondasCalor")} />
+      <g className="niebla" ref={r("niebla")} />
       <Rocio visible={t?.aire_alta === 1} />
       {/* Pared derecha, cumbrera y techo */}
       <polygon points={pts([307, 5, Z0], [307, 305, Z0], [307, 305, ALERO], [307, 5, ALERO])} className="acrilico lado" />
@@ -244,26 +239,21 @@ function Invernadero({ t, aspas, capas }) {
   );
 }
 
-function Tanque({ t, capas }) {
-  const pct = typeof t?._tanque === "number" ? t._tanque : t ? (t.agua ? 72 : 22) : 70;
-  const h = Z0 + 2 + (NIVEL_MAX_MM * limitar(pct, 0, 100)) / 100;
-  const agua = prisma(TX0 + 1.5, TY0 + 1.5, Z0 + 1.5, TX1 - 1.5, TY1 - 1.5, h);
+// Tanque: el motor dibuja el agua (nivel y superficie con olas), el chorro al llenar y las burbujas
+function Tanque({ r, capas }) {
   const vaso = prisma(TX0, TY0, Z0, TX1, TY1, Z0 + 100);
-  const superficie = caraArriba(0, 0, h);
   return (
     <g {...capas("tanque")}>
       <polygon points={pts([TX0, TY1, Z0], [TX1, TY1, Z0], [TX1, TY1, Z0 + 100], [TX0, TY1, Z0 + 100])} className="vaso" />
       <g {...capas("bomba")} className="bomba">
         <Prisma b={[338, 243, Z0 + 2, 372, 268, Z0 + 32]} c={["#4A4E4B", "#6F6A60", "#3A3D3B"]} />
-        <path d={ruta(MANGUERA.slice(0, 2))} className="manguera" />
-        <path d={ruta(MANGUERA.slice(0, 2))} className="agua-manguera" />
+        <Manguera i={0} r={r} />
       </g>
-      <polygon points={agua.lado} className="agua lado" style={{ transition: "all 1.4s ease" }} />
-      <polygon points={agua.frente} className="agua" />
-      <polygon points={agua.arriba} className="agua sup" />
-      <g transform={superficie} className="ondas">
-        {[0, 1, 2].map((i) => <ellipse key={i} cx="352" cy="-255" rx="6" ry="4" style={{ animationDelay: `${i * 0.6}s` }} />)}
-      </g>
+      <polygon ref={r("aguaLado")} className="agua lado" />
+      <polygon ref={r("aguaFrente")} className="agua" />
+      <polygon ref={r("aguaArriba")} className="agua sup" />
+      <polyline ref={r("aguaBrillo")} className="agua-brillo" />
+      <g ref={r("burbujas")} className="burbujas" />
       {[[336, 291], [342, 291]].map(([x, y], i) => (
         <g key={i}>
           <path d={ruta([[x, y, Z0 + 104], [x, y, Z0 + 40]])} stroke="#9AA3A8" strokeWidth="1.4" />
@@ -273,6 +263,7 @@ function Tanque({ t, capas }) {
       <polygon points={vaso.frente} className="vaso" />
       <polygon points={vaso.lado} className="vaso" />
       <polygon points={vaso.arriba} className="vaso borde" />
+      <path ref={r("chorro")} className="chorro" opacity="0" />
     </g>
   );
 }
@@ -351,94 +342,6 @@ function Caja({ t, filasLcd, tapaAbierta, capas, txRef }) {
   );
 }
 
-// Animaciones continuas (ventilador con inercia, gotas, flujo de aire y datos por el cable) sin re-renderizar React
-function useAnimacion({ t, latido, envio, refs, reducir }) {
-  const estado = useRef({ ang: 0, vel: 0, gotas: [], aire: [], pulsos: [], ultimo: 0 });
-  const datos = useRef(t);
-  datos.current = t;
-
-  useEffect(() => { if (latido) estado.current.pulsos.push({ s: 0, dir: 1 }); }, [latido]);
-  useEffect(() => { if (envio) estado.current.pulsos.push({ s: 0, dir: -1 }); }, [envio]);
-
-  useEffect(() => {
-    if (reducir) return undefined;
-    const NS = "http://www.w3.org/2000/svg";
-    const pool = (g, n, tipo) => {
-      if (!g) return [];
-      g.replaceChildren();
-      return Array.from({ length: n }, () => { const e = document.createElementNS(NS, tipo); g.appendChild(e); return e; });
-    };
-    const eGotas = pool(refs.gotas.current, 16, "ellipse");
-    const eAire = pool(refs.aireFlujo.current, 26, "line");
-    const ePulsos = pool(refs.pulsos.current, 8, "circle");
-    const largos = [];
-    let total = 0;
-    for (let i = 1; i < USB.length; i++) {
-      const a = P(...USB[i - 1]), b = P(...USB[i]);
-      const l = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      largos.push(l); total += l;
-    }
-    const enCable = (s) => {
-      let d = s * total;
-      for (let i = 0; i < largos.length; i++) {
-        if (d <= largos[i]) {
-          const a = P(...USB[i]), b = P(...USB[i + 1]), k = d / largos[i];
-          return [lerp(a[0], b[0], k), lerp(a[1], b[1], k)];
-        }
-        d -= largos[i];
-      }
-      return P(...USB[USB.length - 1]);
-    };
-    const bez = (a, b, c, k) => a.map((_, i) => (1 - k) * (1 - k) * a[i] + 2 * (1 - k) * k * b[i] + k * k * c[i]);
-
-    let id;
-    const cuadro = (ms) => {
-      const e = estado.current, d = datos.current;
-      const dt = Math.min(0.05, (ms - (e.ultimo || ms)) / 1000);
-      e.ultimo = ms;
-      // Ventilador: acelera y frena con inercia
-      const objetivo = d?.ventilador === 1 ? 1 : 0;
-      e.vel += (objetivo - e.vel) * dt * (objetivo ? 1.6 : 0.7);
-      e.ang = (e.ang + e.vel * 1080 * dt) % 360;
-      if (refs.aspas.current) refs.aspas.current.setAttribute("transform", `rotate(${e.ang.toFixed(1)} 150 ${-(Z0 + 165)})`);
-      // Gotas de la boquilla
-      if (d?.bomba === 1 && Math.random() < dt * 22) e.gotas.push({ x: BOQUILLA[0] + (Math.random() - 0.5) * 10, y: BOQUILLA[1] + (Math.random() - 0.5) * 8, z: BOQUILLA[2], v: 20 });
-      e.gotas = e.gotas.filter((g) => { g.v += 420 * dt; g.z -= g.v * dt; return g.z > Z0 + 92; }).slice(-eGotas.length);
-      eGotas.forEach((el, i) => {
-        const g = e.gotas[i];
-        if (!g) { el.setAttribute("rx", 0); return; }
-        const [x, y] = P(g.x, g.y, g.z);
-        el.setAttribute("cx", x); el.setAttribute("cy", y); el.setAttribute("rx", 1.3); el.setAttribute("ry", 2.4);
-      });
-      // Aire: entra por la rejilla del fondo, cruza la planta y sale por el ventilador
-      if (e.vel > 0.15 && Math.random() < dt * 14 * e.vel) {
-        e.aire.push({ k: 0, a: [110 + Math.random() * 80, 303, Z0 + 25 + Math.random() * 30], c: [120 + Math.random() * 90, 170 + Math.random() * 60, Z0 + 110 + Math.random() * 70] });
-      }
-      e.aire = e.aire.filter((p) => { p.k += dt * (0.35 + e.vel * 0.45); return p.k < 1.45; }).slice(-eAire.length);
-      eAire.forEach((el, i) => {
-        const p = e.aire[i];
-        if (!p) { el.setAttribute("opacity", 0); return; }
-        const pos = (k) => (k <= 1 ? bez(p.a, p.c, [5, 150, Z0 + 165], k) : [5 - (k - 1) * 160, 150 - (k - 1) * 20, Z0 + 165 + (k - 1) * 40]);
-        const [x1, y1] = P(...pos(Math.max(0, p.k - 0.06))), [x2, y2] = P(...pos(p.k));
-        el.setAttribute("x1", x1); el.setAttribute("y1", y1); el.setAttribute("x2", x2); el.setAttribute("y2", y2);
-        el.setAttribute("opacity", Math.min(1, p.k * 4, (1.45 - p.k) * 3) * 0.75);
-      });
-      // Datos por el cable USB: lecturas hacia el computador, comandos hacia la caja
-      e.pulsos = e.pulsos.filter((p) => { p.s += dt * 0.9; return p.s < 1; }).slice(-ePulsos.length);
-      ePulsos.forEach((el, i) => {
-        const p = e.pulsos[i];
-        if (!p) { el.setAttribute("r", 0); return; }
-        const [x, y] = enCable(p.dir > 0 ? p.s : 1 - p.s);
-        el.setAttribute("cx", x); el.setAttribute("cy", y); el.setAttribute("r", 2.6);
-        el.setAttribute("class", p.dir > 0 ? "pulso" : "pulso comando");
-      });
-      id = requestAnimationFrame(cuadro);
-    };
-    id = requestAnimationFrame(cuadro);
-    return () => cancelAnimationFrame(id);
-  }, [refs, reducir]);
-}
-
 // Luz de la habitación según la hora del invernadero
 function luz(hora) {
   if (!hora) return { color: "#0B1A2C", op: 0 };
@@ -451,15 +354,42 @@ function luz(hora) {
 }
 
 export default function Escena({ t, cfg, modo, latido, envio, pagina, sel, setSel, foco, setFoco, tapaAbierta }) {
-  const refs = useMemo(() => ({ aspas: { current: null }, gotas: { current: null }, aireFlujo: { current: null }, pulsos: { current: null }, tx: { current: null } }), []);
+  // Registro de los elementos que anima el motor (refs estables por nombre)
+  const el = useRef({}).current;
+  const r = useMemo(() => {
+    const cache = {};
+    return (nombre, i) => (cache[nombre + (i ?? "")] ||= (nodo) => {
+      if (i == null) el[nombre] = nodo; else (el[nombre] ||= [])[i] = nodo;
+    });
+  }, [el]);
+  const motor = useRef(null);
+  const datos = useRef(t);
+  datos.current = t;
   const reducir = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  useAnimacion({ t, latido, envio, refs, reducir });
+
+  useEffect(() => {
+    const m = new Motor(el);
+    m.preparar();
+    motor.current = m;
+    if (reducir) { m.asentar(datos.current); return undefined; }
+    let id, antes = performance.now();
+    const cuadro = (ahora) => {
+      m.cuadro((ahora - antes) / 1000, datos.current);
+      antes = ahora;
+      id = requestAnimationFrame(cuadro);
+    };
+    id = requestAnimationFrame(cuadro);
+    return () => cancelAnimationFrame(id);
+  }, [el, reducir]);
+  useEffect(() => { if (reducir) motor.current?.asentar(t); }, [t, reducir]);
+  useEffect(() => { if (latido) motor.current?.latido(); }, [latido]);
+  useEffect(() => { if (envio) motor.current?.comando(); }, [envio]);
   // LED TX del Arduino: destella con cada lectura
   useEffect(() => {
-    const el = refs.tx.current;
-    if (!el || !latido) return;
-    el.classList.remove("destello"); void el.getBoundingClientRect(); el.classList.add("destello");
-  }, [latido, refs]);
+    const led = el.tx;
+    if (!led || !latido) return;
+    led.classList.remove("destello"); void led.getBoundingClientRect(); led.classList.add("destello");
+  }, [latido, el]);
 
   const filasLcd = textoLcd(t, pagina);
   const capas = (id) => ({
@@ -471,8 +401,6 @@ export default function Escena({ t, cfg, modo, latido, envio, pagina, sel, setSe
     onPointerEnter: () => setFoco(id),
     onPointerLeave: () => setFoco(null),
   });
-  capas.gotas = refs.gotas;
-  capas.aireFlujo = refs.aireFlujo;
   const l = luz(t?.hora);
   const ancla = sel && PIEZAS[sel] ? P(...PIEZAS[sel].ancla) : null;
 
@@ -492,20 +420,22 @@ export default function Escena({ t, cfg, modo, latido, envio, pagina, sel, setSe
       <Fondo />
       <polygon points={pts([-4, -6, 0], [478, -6, 0], [486, 318, 0], [4, 318, 0])} className="sombra" />
       <Prisma b={[0, 0, 0, 470, 310, Z0]} c={MDF_BASE} />
-      <Invernadero t={t} aspas={refs.aspas} capas={capas} />
+      <Invernadero t={t} r={r} capas={capas} />
       <path d={ruta([[305, 46, Z0 + 15], [318, 46, Z0 + 15]])} className="cable" stroke="#7B4FB0" strokeWidth="4" />
       {/* Manguera exterior: del tanque a la pared derecha */}
       <g {...capas("bomba")}>
-        <path d={ruta(MANGUERA.slice(1, 3))} className="manguera" />
-        <path d={ruta(MANGUERA.slice(1, 3))} className="agua-manguera" />
+        <Manguera i={1} r={r} />
       </g>
-      <Tanque t={t} capas={capas} />
+      <Tanque r={r} capas={capas} />
       <g {...capas("usb")}>
         <path d={ruta(USB)} className="cable-usb" />
         <path d={ruta(USB)} className="cable-usb-toque" />
       </g>
-      <g ref={refs.pulsos} />
-      <Caja t={t} filasLcd={filasLcd} tapaAbierta={tapaAbierta} capas={capas} txRef={refs.tx} />
+      <g ref={r("pulsos")} />
+      {/* La caja tapa el tanque: se vuelve translúcida al llenarlo o al mirar el tanque y la bomba */}
+      <g ref={r("caja")} data-transparente={+(sel === "tanque" || sel === "bomba")}>
+        <Caja t={t} filasLcd={filasLcd} tapaAbierta={tapaAbierta} capas={capas} txRef={r("tx")} />
+      </g>
       <rect x={VB.x} y={VB.y} width={VB.w} height={VB.h} className="luz" fill={l.color} style={{ opacity: l.op }} />
       {/* Brillos por encima de la luz ambiente: se notan más de noche */}
       <g className="brillos" transform={planoFrente(BY0)}>

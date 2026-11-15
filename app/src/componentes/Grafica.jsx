@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { scaleLinear, scaleTime } from "d3-scale";
 import { area, curveMonotoneX, line } from "d3-shape";
 
@@ -12,7 +12,8 @@ export function GraficaTiempo({ datos, series, desde, hasta, dominio, banda, umb
   const [cursor, setCursor] = useState(null);
   const ancho = 720, m = { i: 40, d: 12, s: 10, b: 24 };
 
-  const { x, y, caminos, ticksY, ticksX, areaRango } = useMemo(() => {
+  const uid = useId().replace(/:/g, "");
+  const { x, y, caminos, areas, ticksY, ticksX, areaRango } = useMemo(() => {
     const x = scaleTime().domain([desde, hasta]).range([m.i, ancho - m.d]);
     let [y0, y1] = dominio || [0, 100];
     if (!dominio) {
@@ -23,9 +24,12 @@ export function GraficaTiempo({ datos, series, desde, hasta, dominio, banda, umb
     const y = scaleLinear().domain([y0, y1]).nice(5).range([alto - m.b, m.s]);
     const caminos = series.map((s) => line().defined((d) => typeof d[s.campo] === "number")
       .x((d) => x(d.t)).y((d) => y(d[s.campo])).curve(curveMonotoneX)(datos) || "");
+    // Relleno degradado bajo cada serie, hasta el piso del gráfico
+    const areas = series.map((s) => area().defined((d) => typeof d[s.campo] === "number")
+      .x((d) => x(d.t)).y0(alto - m.b).y1((d) => y(d[s.campo])).curve(curveMonotoneX)(datos) || "");
     const areaRango = rangoArea ? area().defined((d) => typeof d[rangoArea.min] === "number")
       .x((d) => x(d.t)).y0((d) => y(d[rangoArea.min])).y1((d) => y(d[rangoArea.max])).curve(curveMonotoneX)(datos) : null;
-    return { x, y, caminos, ticksY: y.ticks(5), ticksX: x.ticks(6), areaRango };
+    return { x, y, caminos, areas, ticksY: y.ticks(5), ticksX: x.ticks(6), areaRango };
   }, [datos, series, desde, hasta, dominio, umbrales, alto, rangoArea]);
 
   const mover = (e) => {
@@ -42,6 +46,15 @@ export function GraficaTiempo({ datos, series, desde, hasta, dominio, banda, umb
   return (
     <div className="grafica">
       <svg ref={ref} viewBox={`0 0 ${ancho} ${alto}`} onPointerMove={mover} onPointerLeave={() => setCursor(null)} role="img">
+        <defs>
+          {series.map((s, i) => (
+            <linearGradient key={s.campo} id={`${uid}-g${i}`} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stopColor={s.color} stopOpacity={series.length > 1 ? 0.12 : 0.32} />
+              <stop offset="1" stopColor={s.color} stopOpacity="0" />
+            </linearGradient>
+          ))}
+          <filter id={`${uid}-brillo`} x="-5%" y="-20%" width="110%" height="140%"><feGaussianBlur stdDeviation="3" /></filter>
+        </defs>
         <g className="rejilla">
           {ticksY.map((v) => <line key={v} x1={m.i} x2={ancho - m.d} y1={y(v)} y2={y(v)} />)}
         </g>
@@ -60,18 +73,29 @@ export function GraficaTiempo({ datos, series, desde, hasta, dominio, banda, umb
             <text x={ancho - m.d} y={y(u.valor) - 4} textAnchor="end" fontSize="10" fill={u.color}>{u.etiqueta}</text>
           </g>
         ))}
-        {caminos.map((d, i) => <path key={series[i].campo} d={d} fill="none" stroke={series[i].color} strokeWidth="2.2" strokeLinejoin="round" />)}
+        {/* El trazo se dibuja de izquierda a derecha al cambiar de periodo */}
+        <g className="series" key={`${Math.round((hasta - desde) / 60000)}-${datos.length > 0}`}>
+          {areas.map((d, i) => <path key={`a${i}`} d={d} fill={`url(#${uid}-g${i})`} className="serie-area" />)}
+          {caminos.map((d, i) => <path key={`b${i}`} d={d} fill="none" stroke={series[i].color} strokeWidth="5" opacity=".35" filter={`url(#${uid}-brillo)`} pathLength="1" className="serie-linea" />)}
+          {caminos.map((d, i) => <path key={series[i].campo} d={d} fill="none" stroke={series[i].color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" pathLength="1" className="serie-linea" />)}
+        </g>
         {ultimo && series.map((s) => typeof ultimo[s.campo] === "number" && (
-          <circle key={s.campo} cx={x(ultimo.t)} cy={y(ultimo[s.campo])} r="4" fill={s.color} stroke="var(--panel)" strokeWidth="2" />
+          <g key={s.campo}>
+            <circle cx={x(ultimo.t)} cy={y(ultimo[s.campo])} r="4" fill={s.color} className="punto-vivo" />
+            <circle cx={x(ultimo.t)} cy={y(ultimo[s.campo])} r="4" fill={s.color} stroke="var(--panel)" strokeWidth="2" />
+          </g>
         ))}
         {!datos.length && <text x={ancho / 2} y={alto / 2} textAnchor="middle" fill="var(--tinta-3)" fontSize="13">Aún no hay datos en este periodo</text>}
         {cursor && <line className="cursor" x1={x(cursor.t)} x2={x(cursor.t)} y1={m.s} y2={alto - m.b} />}
+        {cursor && series.map((s) => typeof cursor[s.campo] === "number" && (
+          <circle key={s.campo} cx={x(cursor.t)} cy={y(cursor[s.campo])} r="4.5" fill="var(--panel)" stroke={s.color} strokeWidth="2.2" className="punto-cursor" />
+        ))}
       </svg>
       {cursor && (
         <div className="tooltip" style={{ left: `${(x(cursor.t) / ancho) * 100}%`, top: 8 }}>
           <div>{formatoFecha(cursor.t)}</div>
           {series.map((s) => (
-            <div key={s.campo}>{s.nombre}: <b>{typeof cursor[s.campo] === "number" ? cursor[s.campo].toFixed(1) : "sin dato"}{unidad}</b></div>
+            <div key={s.campo}><i style={{ background: s.color }} />{s.nombre}: <b>{typeof cursor[s.campo] === "number" ? cursor[s.campo].toFixed(1) : "sin dato"}{unidad}</b></div>
           ))}
         </div>
       )}
@@ -102,7 +126,7 @@ export function TiraActuadores({ datos, desde, hasta, campos, umbral = 0.5 }) {
           <span>{c.nombre}</span>
           <div className="tira-pista">
             {tramos(c.campo).map(([a, b]) => (
-              <i key={a} style={{ left: `${pos(a)}%`, width: `max(2px, ${pos(b) - pos(a)}%)`, background: c.color }} />
+              <i key={a} style={{ left: `${pos(a)}%`, width: `max(3px, ${pos(b) - pos(a)}%)`, "--c": c.color }} />
             ))}
           </div>
         </div>

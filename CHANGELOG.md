@@ -7,6 +7,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 ### Agregado
 - Aplicación de escritorio para Windows con Electron: instalador `.exe`, acceso directo, selector propio del puerto USB y permisos limitados al puerto serie.
 - Maqueta interactiva en la aplicación, con las medidas y materiales de la maqueta física: cada pieza muestra su ficha y su acción, la caja se abre para ver la electrónica y cada animación responde a un dato (ventilador con inercia y flujo de aire, riego con gotas, tierra y hojas según la humedad, calor, rocío, LEDs, zumbador, luz según la hora y datos que viajan por el cable USB).
+- Motor de animación a 60 cuadros por segundo con física simple. El agua del tanque tiene nivel con caudal limitado, olas (ecuación de onda), chorro y burbujas al rellenar. La manguera se llena desde la bomba y las gotas caen con gravedad, rebotan en las hojas y salpican la tierra. Las hojas son resortes amortiguados que se marchitan, se recuperan al regar y tiemblan con el viento del ventilador, que tiene inercia y desenfoque de movimiento. Además hay ondas de calor y niebla con el aire húmedo.
+- Gráficas con trazo animado, relleno degradado, halo en el último valor y cursor con el valor de cada serie; números del tablero que se deslizan hasta el nuevo valor.
 - Réplica de la pantalla LCD con matriz de puntos de 5×8 que muestra las mismas páginas que el firmware.
 - Tablero con trazas de 30 minutos y bitácora de los últimos eventos.
 - Botones de la demostración para provocar calor, sequía, aire húmedo o tanque vacío.

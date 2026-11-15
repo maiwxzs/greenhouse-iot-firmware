@@ -32,16 +32,19 @@ La maqueta se dibuja en proyección oblicua con las medidas de [`docs/maqueta.md
 
 | En la maqueta | Dato |
 |---|---|
-| El ventilador acelera y frena con inercia; líneas de aire entran por la rejilla del fondo y salen por el ventilador | `ventilador` |
-| El agua corre por la manguera, caen gotas sobre la maceta y el agua del tanque se ondula; la bomba vibra | `bomba` |
-| La tierra se oscurece con la humedad; las hojas caen y amarillean con el suelo seco | `hum_suelo` |
-| El aire del invernadero se tiñe de naranja con el calor | `temp_c` |
-| Aparecen gotas de rocío en el acrílico; se enciende el LED del módulo HR202 | `aire_alta` |
+| El ventilador acelera y frena con inercia, con desenfoque de movimiento; el aire entra por la rejilla del fondo, rodea la planta y sale por el ventilador | `ventilador` |
+| La manguera se llena desde la bomba hasta la boquilla; luego la corriente avanza por ella, caen gotas con gravedad que rebotan en las hojas y salpican la tierra, que se oscurece donde cae el agua; la bomba vibra y burbujea | `bomba` |
+| Cada hoja es un resorte amortiguado: se marchita y amarillea con el suelo seco, se levanta al regar, se sacude con las gotas y tiembla con el viento del ventilador; el tallo se inclina hacia el ventilador | `hum_suelo`, `bomba`, `ventilador` |
+| El agua del tanque tiene nivel y superficie propios: al rellenarlo cae un chorro con burbujas, el nivel sube con caudal limitado y la superficie se mueve con olas que rebotan en las paredes (ecuación de onda); mientras tanto la caja se vuelve translúcida para dejar ver el tanque | `_tanque`, `agua` |
+| El aire del invernadero se tiñe de naranja y suben ondas de calor desde el piso | `temp_c` |
+| Rocío en el acrílico, una niebla tenue que arrastra el ventilador y el LED del módulo HR202 | `aire_alta` |
 | LED rojo fijo con el suelo seco e intermitente con el tanque vacío; LED azul con el aire húmedo | `suelo`, `agua`, `aire_alta` |
 | El zumbador emite ondas y el marco de la maqueta pulsa en rojo | `alarma` |
 | La pantalla de la caja escribe sus dos páginas | Todos los campos, igual que el firmware |
 | La luz de la habitación sigue la hora del invernadero | `hora` |
 | Puntos amarillos viajan por el cable USB hacia el computador con cada lectura; puntos celestes viajan hacia la caja con cada comando | Comunicación serie |
+
+Las lecturas llegan cada 2 s, pero la escena no salta: temperatura, humedad y nivel se suavizan y los números del tablero se deslizan hasta su nuevo valor. El motor de animación (`escena/motor.js`) corre en un único `requestAnimationFrame`, usa conjuntos fijos de elementos SVG para las partículas y un paso fijo de 1/240 s para el agua, y modifica el SVG directamente sin volver a renderizar React. Toma alrededor de 1 ms por cuadro, así que la escena se mantiene a 60 cuadros por segundo con todo activo.
 
 Cada pieza se puede tocar. Su ficha dice qué es, cómo está conectada y qué está haciendo, y ofrece la acción que le corresponde: regar desde la bomba, silenciar desde el zumbador o rellenar el tanque en la demostración. Al tocar la caja, la tapa se levanta y las paredes se vuelven translúcidas para mostrar el Arduino, la protoboard y los dos relés, con el LED TX que destella en cada lectura y el LED de cada relé. Con «reducir movimiento» activado en Windows, las animaciones continuas se desactivan.
 
@@ -62,7 +65,9 @@ app/
 │   ├── estilos.css         Tema oscuro con base verde y colores de los datos
 │   ├── escena/
 │   │   ├── proyeccion.js   Proyección oblicua en mm y planos de dibujo de cada cara
-│   │   ├── Escena.jsx      Maqueta: invernadero, tanque, caja y animaciones
+│   │   ├── geometria.js    Medidas de la maqueta compartidas por el dibujo y el motor
+│   │   ├── Escena.jsx      Maqueta: invernadero, tanque y caja
+│   │   ├── motor.js        Motor de animación: agua, riego, planta, ventilador, partículas
 │   │   ├── Lcd.jsx         Réplica de la LCD 16x2 con matriz de puntos de 5x8
 │   │   └── piezas.js       Ficha de cada pieza
 │   ├── hooks/useConexion.js   Web Serial (lectura por líneas, escritura de comandos) y demostración
@@ -88,7 +93,9 @@ La interfaz usa la API Web Serial de Chromium a 9600 baudios. Electron no trae e
 3. `Registro` mantiene en memoria solo los últimos 30 minutos para las trazas y las gráficas en vivo. Escribe en IndexedDB en lotes de 15 lecturas y un resumen al cerrar cada minuto.
 4. `Almacen` borra lo que supera la retención.
 
-Las animaciones continuas (ventilador, gotas, aire y datos por el cable) corren en un único `requestAnimationFrame` que modifica el SVG directamente, sin volver a renderizar React en cada cuadro.
+Las animaciones continuas corren en el motor de animación descrito arriba, fuera del ciclo de React.
+
+Las gráficas dibujan su trazo de izquierda a derecha al cambiar de periodo, con relleno degradado bajo cada serie, un halo que late en el último valor y un cursor que marca cada serie con su valor exacto.
 
 ### Almacenamiento
 

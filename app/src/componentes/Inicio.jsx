@@ -1,7 +1,7 @@
 // Vista principal: la maqueta interactiva y, al lado, el tablero con las lecturas y la réplica de la pantalla.
-import { useMemo } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { scaleLinear } from "d3-scale";
-import { curveMonotoneX, curveStepAfter, line } from "d3-shape";
+import { area, curveMonotoneX, curveStepAfter, line } from "d3-shape";
 import { LuBellOff, LuDroplets, LuGlassWater, LuPlay, LuPlugZap, LuX } from "react-icons/lu";
 import Escena, { VB } from "../escena/Escena.jsx";
 import Lcd, { textoLcd } from "../escena/Lcd.jsx";
@@ -11,30 +11,65 @@ import { textoEstado } from "../lib/protocolo.js";
 
 const pct = ([x, y]) => ({ left: `${((x - VB.x) / VB.w) * 100}%`, top: `${((y - VB.y) / VB.h) * 100}%` });
 
-// Trazo de los últimos 30 minutos con las referencias de los umbrales
+// Trazo de los últimos 30 minutos con relleno degradado, referencias de los umbrales y el punto en vivo
 function Traza({ datos, campo, dominio, marcas = [], banda, escalon, color }) {
   const W = 220, H = 40;
+  const uid = useId().replace(/:/g, "");
   const d = useMemo(() => {
     if (datos.length < 2) return null;
     const t0 = datos[0].t, t1 = datos[datos.length - 1].t;
-    const x = scaleLinear().domain([t0, Math.max(t1, t0 + 1)]).range([0, W]);
+    const x = scaleLinear().domain([t0, Math.max(t1, t0 + 1)]).range([0, W - 4]);
     const vals = datos.map((l) => l[campo]).filter((v) => typeof v === "number");
     const [a, b] = dominio || [Math.min(...vals, ...marcas) - 1, Math.max(...vals, ...marcas) + 1];
-    const y = scaleLinear().domain([a, b]).range([H - 3, 3]);
+    const y = scaleLinear().domain([a, b]).range([H - 3, 4]);
+    const curva = escalon ? curveStepAfter : curveMonotoneX;
+    const def = (l) => typeof l[campo] === "number";
+    const ult = datos[datos.length - 1];
     return {
-      camino: line().defined((l) => typeof l[campo] === "number").x((l) => x(l.t)).y((l) => y(l[campo]))
-        .curve(escalon ? curveStepAfter : curveMonotoneX)(datos),
+      camino: line().defined(def).x((l) => x(l.t)).y((l) => y(l[campo])).curve(curva)(datos),
+      relleno: area().defined(def).x((l) => x(l.t)).y0(H).y1((l) => y(l[campo])).curve(curva)(datos),
       marcas: marcas.map((m) => y(m)),
       banda: banda ? [y(banda[1]), y(banda[0])] : null,
+      punto: def(ult) ? [x(ult.t), y(ult[campo])] : null,
     };
   }, [datos, campo, dominio, marcas, banda, escalon]);
   return (
     <svg className="traza" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id={`${uid}-r`} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor={color} stopOpacity=".35" /><stop offset="1" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
       {d?.banda && <rect x="0" width={W} y={d.banda[0]} height={Math.max(0, d.banda[1] - d.banda[0])} className="traza-banda" />}
       {d?.marcas.map((m, i) => <line key={i} x1="0" x2={W} y1={m} y2={m} className="traza-marca" />)}
-      {d ? <path d={d.camino} stroke={color} className="traza-linea" /> : <line x1="0" x2={W} y1={H / 2} y2={H / 2} className="traza-vacia" />}
+      {d ? (
+        <>
+          <path d={d.relleno} fill={`url(#${uid}-r)`} />
+          <path d={d.camino} stroke={color} className="traza-linea" />
+        </>
+      ) : <line x1="0" x2={W} y1={H / 2} y2={H / 2} className="traza-vacia" />}
     </svg>
   );
+}
+
+// Número que se desliza suavemente hasta el nuevo valor en lugar de saltar
+function useSuave(valor, ms = 700) {
+  const [mostrado, setMostrado] = useState(valor);
+  const desde = useRef(valor);
+  useEffect(() => {
+    if (typeof valor !== "number" || typeof desde.current !== "number") { desde.current = valor; setMostrado(valor); return undefined; }
+    const a = desde.current, t0 = performance.now();
+    let id;
+    const paso = (ahora) => {
+      const k = Math.min(1, (ahora - t0) / ms), e = 1 - (1 - k) ** 3;
+      const v = a + (valor - a) * e;
+      desde.current = v; setMostrado(v);
+      if (k < 1) id = requestAnimationFrame(paso);
+    };
+    id = requestAnimationFrame(paso);
+    return () => cancelAnimationFrame(id);
+  }, [valor, ms]);
+  return mostrado;
 }
 
 function Lectura({ id, titulo, valor, unidad, nota, alerta, foco, setFoco, setSel, children }) {
@@ -81,6 +116,8 @@ export default function Inicio({ eventos = [], verEventos, t, cfg, vivo, modo, l
   const datos = useMemo(() => vivo.map((l) => ({ ...l, aire: l.aire_alta, agua_n: l.agua })), [vivo]);
   const filas = textoLcd(t, pagina);
   const minAire = t && aireDesde ? Math.max(0, Math.round((Date.now() - aireDesde) / 60000)) : null;
+  const temp = useSuave(typeof t?.temp_c === "number" ? t.temp_c : null);
+  const suelo = useSuave(typeof t?.hum_suelo === "number" ? t.hum_suelo : null);
 
   return (
     <div className="inicio">
@@ -127,12 +164,12 @@ export default function Inicio({ eventos = [], verEventos, t, cfg, vivo, modo, l
         </header>
 
         <ul className="lecturas">
-          <Lectura id="temperatura" titulo="Temperatura" valor={typeof t?.temp_c === "number" ? t.temp_c.toFixed(1) : "--"} unidad="°C"
+          <Lectura id="temperatura" titulo="Temperatura" valor={typeof temp === "number" ? temp.toFixed(1) : "--"} unidad="°C"
             nota={`Ventila sobre ${cfg?.temp_max ?? 30} °C · alarma en ${cfg?.temp_crit ?? 35} °C`}
             alerta={t && t.temp_c >= (cfg?.temp_crit ?? 35)} foco={foco} setFoco={setFoco} setSel={setSel}>
             <Traza datos={datos} campo="temp_c" marcas={[cfg?.temp_max ?? 30]} color="var(--calor)" />
           </Lectura>
-          <Lectura id="suelo" titulo="Humedad del suelo" valor={typeof t?.hum_suelo === "number" ? Math.round(t.hum_suelo) : "--"} unidad="%"
+          <Lectura id="suelo" titulo="Humedad del suelo" valor={typeof suelo === "number" ? Math.round(suelo) : "--"} unidad="%"
             nota={`Riega bajo ${cfg?.suelo_min ?? 30} % · pausa sobre ${cfg?.suelo_max ?? 85} %`}
             foco={foco} setFoco={setFoco} setSel={setSel}>
             <Traza datos={datos} campo="hum_suelo" dominio={[0, 100]} banda={[cfg?.suelo_min ?? 30, cfg?.suelo_max ?? 85]} color="var(--hoja)" />
