@@ -1,6 +1,7 @@
 # Construye la aplicación de escritorio para Windows (instalador .exe con Electron).
 # - En cada cambio de app/ el instalador queda como artefacto de la ejecución (pestaña "Actions").
-# - Al publicar una etiqueta vX.Y.Z se crea una versión en "Releases" con el instalador adjunto.
+# - Al publicar una etiqueta vX.Y.Z, o al ejecutarlo a mano con una versión, se crea una versión
+#   en "Releases" con el instalador adjunto.
 name: Aplicación de escritorio
 
 on:
@@ -11,6 +12,11 @@ on:
   pull_request:
     paths: ["app/**", ".github/workflows/aplicacion.yml"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión a publicar en Releases (por ejemplo v3.1.0); vacío para solo construir"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -54,11 +60,13 @@ jobs:
           if-no-files-found: error
 
       - name: Publicar en Releases
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.version != ''
         uses: softprops/action-gh-release@v2
         with:
           files: app/release/*.exe
-          name: Invernadero IoT ${{ github.ref_name }}
+          tag_name: ${{ inputs.version || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          name: Invernadero IoT ${{ inputs.version || github.ref_name }}
           body: |
             Aplicación de escritorio para Windows 10 y 11 (64 bits).
             Descarga el archivo `.exe`, ábrelo y sigue el instalador. Guía completa en docs/manual-usuario.md.
