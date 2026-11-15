@@ -86,21 +86,21 @@ export default function Historial({ almacen, version }) {
               <h3>Temperatura promedio por minuto</h3>
               <p className="nota">La franja muestra el mínimo y el máximo de cada minuto.</p>
               <GraficaTiempo datos={serie} desde={desde} hasta={hasta} unidad="°" formatoX={formatoX}
-                series={[{ campo: "temp", nombre: "Promedio", color: "#B9790A" }]}
-                rangoArea={{ min: "tempMin", max: "tempMax", color: "#B9790A" }} />
+                series={[{ campo: "temp", nombre: "Promedio", color: "#F0A04B" }]}
+                rangoArea={{ min: "tempMin", max: "tempMax", color: "#F0A04B" }} />
             </section>
             <section className="bloque">
               <h3>Humedad del suelo</h3>
               <p className="nota">Cada subida brusca corresponde a un riego.</p>
               <GraficaTiempo datos={serie} desde={desde} hasta={hasta} dominio={[0, 100]} unidad="%" formatoX={formatoX}
-                series={[{ campo: "suelo", nombre: "Suelo", color: "#2E7A4C" }]} />
+                series={[{ campo: "suelo", nombre: "Suelo", color: "#5CC583" }]} />
             </section>
             <section className="bloque" style={{ gridColumn: "1 / -1" }}>
               <h3>Actuadores y humedad del aire</h3>
               <TiraActuadores datos={serie} desde={desde} hasta={hasta} umbral={0} campos={[
-                { campo: "bomba", nombre: "Bomba", color: "#2370AE" },
-                { campo: "vent", nombre: "Ventilador", color: "#2E7A4C" },
-                { campo: "aire", nombre: "Aire alto", color: "#8DB8DD" },
+                { campo: "bomba", nombre: "Bomba", color: "#4FA3E8" },
+                { campo: "vent", nombre: "Ventilador", color: "#5CC583" },
+                { campo: "aire", nombre: "Aire alto", color: "#8EC5EE" },
               ]} />
             </section>
           </div>

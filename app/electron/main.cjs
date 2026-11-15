@@ -25,7 +25,7 @@ function crearVentana() {
     minHeight: 720,
     show: false,
     title: "Invernadero IoT",
-    backgroundColor: "#234A3D",
+    backgroundColor: "#121C17",
     icon: path.join(__dirname, "..", "recursos", "icon.png"),
     autoHideMenuBar: true,
     webPreferences: {

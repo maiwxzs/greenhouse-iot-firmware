@@ -13,7 +13,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 - Integración continua que construye el instalador en Windows, abre la aplicación empaquetada como prueba de humo y adjunta el instalador a cada versión en Releases.
 
 ### Cambiado
-- Nueva identidad visual de la aplicación: tapete de corte, materiales de la maqueta y hojas de datos; navegación lateral.
+- Nueva identidad visual de la aplicación: tema oscuro con base verde y superficies lisas, color reservado para los datos y los materiales de la maqueta; navegación lateral.
 - Documentación de la aplicación, manual de usuario y diagrama de arquitectura como aplicación de escritorio.
 
 ### Eliminado

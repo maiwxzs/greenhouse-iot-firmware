@@ -50,17 +50,13 @@ function Viga({ a, b, ancho = 7 }) {
   );
 }
 
-// Malla del tapete de corte: cuadrícula de 10 mm y líneas mayores cada 50 mm, sobre la mesa (z = 0)
-const Tapete = memo(function Tapete() {
-  const menores = [], mayores = [];
-  for (let x = -480; x <= 900; x += 10) (x % 50 ? menores : mayores).push(ruta([[x, -140, 0], [x, 700, 0]]));
-  for (let y = -140; y <= 700; y += 10) (y % 50 ? menores : mayores).push(ruta([[-480, y, 0], [900, y, 0]]));
+// Fondo de la escena: superficie lisa con una luz suave bajo la maqueta, sin tramas
+const Fondo = memo(function Fondo() {
+  const [cx, cy] = P(235, 155, 0);
   return (
-    <g className="tapete" aria-hidden="true">
-      <rect x={VB.x} y={VB.y} width={VB.w} height={VB.h} className="tapete-fondo" />
-      <path d={menores.join(" ")} className="tapete-menor" />
-      <path d={mayores.join(" ")} className="tapete-mayor" />
-      <path d={ruta([[-480, -60, 0], [900, 600, 0]])} className="tapete-diagonal" />
+    <g className="fondo-escena" aria-hidden="true">
+      <rect x={VB.x} y={VB.y} width={VB.w} height={VB.h} className="fondo-base" />
+      <ellipse cx={cx} cy={cy - 120} rx="420" ry="260" fill="url(#luz-mesa)" />
     </g>
   );
 });
@@ -489,10 +485,11 @@ export default function Escena({ t, cfg, modo, latido, envio, pagina, sel, setSe
         <linearGradient id="acero" x1="0" x2="1"><stop offset="0" stopColor="#8E979C" /><stop offset=".5" stopColor="#E3E8EB" /><stop offset="1" stopColor="#8E979C" /></linearGradient>
         <radialGradient id="brillo-humedo"><stop offset="0" stopColor="#FFFFFF" stopOpacity=".55" /><stop offset="1" stopColor="#FFFFFF" stopOpacity="0" /></radialGradient>
         <radialGradient id="aire-caliente" cx=".45" cy=".65" r=".75"><stop offset="0" stopColor="#FF7A2E" stopOpacity=".8" /><stop offset=".6" stopColor="#FF9A4A" stopOpacity=".35" /><stop offset="1" stopColor="#FFB45E" stopOpacity=".08" /></radialGradient>
+        <radialGradient id="luz-mesa"><stop offset="0" stopColor="#2A3D32" stopOpacity=".9" /><stop offset="1" stopColor="#2A3D32" stopOpacity="0" /></radialGradient>
         <pattern id="malla" width="3" height="3" patternUnits="userSpaceOnUse"><rect width="3" height="3" fill="#3D4A44" /><path d="M0 0h3M0 0v3" stroke="#7E8F86" strokeWidth=".6" /></pattern>
         <pattern id="agujeros" width="2.54" height="2.54" patternUnits="userSpaceOnUse"><circle cx="1.27" cy="1.27" r=".45" fill="#8E8A80" /></pattern>
       </defs>
-      <Tapete />
+      <Fondo />
       <polygon points={pts([-4, -6, 0], [478, -6, 0], [486, 318, 0], [4, 318, 0])} className="sombra" />
       <Prisma b={[0, 0, 0, 470, 310, Z0]} c={MDF_BASE} />
       <Invernadero t={t} aspas={refs.aspas} capas={capas} />

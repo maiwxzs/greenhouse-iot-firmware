@@ -62,9 +62,9 @@ export function GraficaTiempo({ datos, series, desde, hasta, dominio, banda, umb
         ))}
         {caminos.map((d, i) => <path key={series[i].campo} d={d} fill="none" stroke={series[i].color} strokeWidth="2.2" strokeLinejoin="round" />)}
         {ultimo && series.map((s) => typeof ultimo[s.campo] === "number" && (
-          <circle key={s.campo} cx={x(ultimo.t)} cy={y(ultimo[s.campo])} r="4" fill={s.color} stroke="#fff" strokeWidth="2" />
+          <circle key={s.campo} cx={x(ultimo.t)} cy={y(ultimo[s.campo])} r="4" fill={s.color} stroke="var(--panel)" strokeWidth="2" />
         ))}
-        {!datos.length && <text x={ancho / 2} y={alto / 2} textAnchor="middle" fill="#7A8B80" fontSize="13">Aún no hay datos en este periodo</text>}
+        {!datos.length && <text x={ancho / 2} y={alto / 2} textAnchor="middle" fill="var(--tinta-3)" fontSize="13">Aún no hay datos en este periodo</text>}
         {cursor && <line className="cursor" x1={x(cursor.t)} x2={x(cursor.t)} y1={m.s} y2={alto - m.b} />}
       </svg>
       {cursor && (

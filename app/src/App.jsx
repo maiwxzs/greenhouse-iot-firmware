@@ -28,8 +28,7 @@ const PROVOCAR = [["calor", "Calor"], ["critico", "Calor extremo"], ["frio", "En
 function Logo() {
   return (
     <svg className="logo" viewBox="0 0 64 64" aria-hidden="true">
-      <rect width="64" height="64" rx="13" fill="#234A3D" />
-      <path d="M0 16H64M0 32H64M0 48H64M16 0V64M32 0V64M48 0V64" stroke="#D6ECDE" strokeOpacity=".12" />
+      <rect width="64" height="64" rx="13" fill="#18241D" />
       <path d="M11 52V27L32 12L53 27V52Z" fill="#CFE6F0" fillOpacity=".14" stroke="#E2C48E" strokeWidth="3.6" strokeLinejoin="round" />
       <path d="M32 49C32 42 32 37 32 31" stroke="#7FD39B" strokeWidth="3.2" strokeLinecap="round" />
       <path d="M32 42C25 42 22 36 22 33C28 33 32 36 32 42ZM32 37C39 37 42 31 42 28C36 28 32 31 32 37Z" fill="#7FD39B" />

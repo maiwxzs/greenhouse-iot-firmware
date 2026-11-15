@@ -59,7 +59,7 @@ app/
 ├── src/
 │   ├── main.jsx            Punto de entrada
 │   ├── App.jsx             Estado global, conexión, registro y navegación
-│   ├── estilos.css         Tapete de corte, materiales de la maqueta y hojas de datos
+│   ├── estilos.css         Tema oscuro con base verde y colores de los datos
 │   ├── escena/
 │   │   ├── proyeccion.js   Proyección oblicua en mm y planos de dibujo de cada cara
 │   │   ├── Escena.jsx      Maqueta: invernadero, tanque, caja y animaciones
