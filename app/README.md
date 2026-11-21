@@ -18,8 +18,8 @@ El instalador `Invernadero-IoT-<versión>-Windows.exe` está en la sección [Rel
 
 | Sección | Contenido |
 |---|---|
-| Invernadero | Maqueta interactiva, tablero de lecturas con trazas de 30 min, réplica de la pantalla LCD, acciones y bitácora |
-| Gráficas | Temperatura y humedad del suelo de los últimos 30 min, y franjas de bomba, ventilador y aire húmedo |
+| Tablero | Pantalla principal en tiempo real: estado y alarma, medidores de temperatura y humedad del suelo con mínimos, máximos y tendencia de 10 min, humedad del aire, tanque y agua usada, bomba, ventilador, alarma y LEDs con su tiempo en el estado actual, cupo de la bomba en la hora, réplica de la LCD, últimos eventos y gráficas de 30 min |
+| Maqueta | Maqueta interactiva animada con los datos, con la ficha de cada pieza |
 | Historial | Hoy, 7 o 30 días: estadísticas, gráficas por minuto, resumen diario y exportación a CSV |
 | Eventos | Cambios de estado, riegos, ventilador, aire húmedo, alarmas, comandos y conexiones |
 | Ajustes | Umbrales de temperatura y suelo, y puesta en hora del reloj del invernadero |
@@ -27,6 +27,8 @@ El instalador `Invernadero-IoT-<versión>-Windows.exe` está en la sección [Rel
 | Consola | Comandos escritos a mano y todas las líneas que envía el Arduino |
 
 ## Maqueta interactiva
+
+![Maqueta](../docs/img/aplicacion-maqueta.png)
 
 La maqueta se dibuja en proyección oblicua con las medidas de [`docs/maqueta.md`](../docs/maqueta.md): base de 470 × 310 mm, invernadero de balso y acrílico, caja de MDF con la electrónica y tanque de 1 L. Cada animación corresponde a un dato de la telemetría:
 
@@ -76,7 +78,7 @@ app/
 │   │   ├── registro.js     Ventana en vivo, eventos, resumen por minuto y por día
 │   │   ├── almacen.js      IndexedDB: lecturas, minutos y eventos, con retención
 │   │   └── simulador.js    Arduino simulado con el mismo protocolo
-│   └── componentes/        Inicio, Gráficas, Historial, Eventos, Ajustes, Calibración, Consola, SelectorPuerto
+│   └── componentes/        Tablero, Inicio (maqueta), Historial, Eventos, Ajustes, Calibración, Consola, SelectorPuerto
 ├── public/                 Íconos
 ├── recursos/icon.png       Ícono del instalador
 └── build.mjs               Construcción de la interfaz con esbuild

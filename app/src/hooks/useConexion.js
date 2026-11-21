@@ -1,4 +1,4 @@
-// Conexión con el Arduino por USB (Web Serial) o con el simulador.
+// Web Serial o simulador
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Simulador } from "../lib/simulador.js";
 

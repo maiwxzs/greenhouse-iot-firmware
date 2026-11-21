@@ -1,13 +1,11 @@
 #ifndef GREENHOUSE_LOGICA_H
 #define GREENHOUSE_LOGICA_H
 
-// =====================================================================
-//  Lógica pura del invernadero (sin dependencias de Arduino)
+// Lógica pura del invernadero (sin dependencias de Arduino)
 //
-//  Todo lo que aquí aparece se puede compilar y probar en el computador
-//  (pruebas unitarias en firmware/test/). Las clases que tocan pines,
-//  sensores o la pantalla están en GreenhouseCore.hpp.
-// =====================================================================
+// Todo lo que aquí aparece se puede compilar y probar en el computador
+// (pruebas unitarias en firmware/test/). Las clases que tocan pines,
+// sensores o la pantalla están en GreenhouseCore.hpp
 
 #include <stdint.h>
 #include <stddef.h>
@@ -16,9 +14,7 @@
 #include <ctype.h>
 #include <math.h>
 
-// ---------------------------------------------------------------------
-//  LecturaDato: una medición con su marca de tiempo y validez
-// ---------------------------------------------------------------------
+// LecturaDato: una medición con su marca de tiempo y validez
 class LecturaDato {
 public:
     uint16_t idLectura;
@@ -35,7 +31,7 @@ public:
 
     bool esValida() const { return valida; }
 
-    // Funciona con Serial, con la pantalla o con cualquier objeto que tenga print().
+    // Funciona con Serial, con la pantalla o con cualquier objeto que tenga print()
     template <class Salida>
     void formatearSalida(Salida& salida) const {
         salida.print("Lectura #");
@@ -51,10 +47,8 @@ public:
     }
 };
 
-// ---------------------------------------------------------------------
-//  Conversión de una lectura del ADC (0-1023) a porcentaje (0-100)
-//  entre dos puntos de calibración. El orden de los puntos no importa.
-// ---------------------------------------------------------------------
+// Conversión de una lectura del ADC (0-1023) a porcentaje (0-100)
+// entre dos puntos de calibración. El orden de los puntos no importa.
 inline float adcAPorcentaje(int adc, int adcSeco, int adcHumedo) {
     if (adcSeco == adcHumedo) return 0.0f;
     float pct = (float)(adc - adcSeco) * 100.0f / (float)(adcHumedo - adcSeco);
@@ -63,9 +57,7 @@ inline float adcAPorcentaje(int adc, int adcSeco, int adcHumedo) {
     return pct;
 }
 
-// ---------------------------------------------------------------------
-//  Ajustes que se pueden cambiar por comandos y se guardan en la EEPROM
-// ---------------------------------------------------------------------
+// Ajustes que se pueden cambiar por comandos y se guardan en la EEPROM
 struct Ajustes {
     uint16_t magia;          // identifica que la EEPROM tiene ajustes válidos
     uint8_t  version;
@@ -116,11 +108,9 @@ inline bool ajustesValidos(const Ajustes& a) {
     return true;
 }
 
-// ---------------------------------------------------------------------
-//  Histéresis: para entrar en BAJA/ALTA basta cruzar el umbral; para
-//  salir hay que alejarse 'histeresis' unidades. Evita que los relés
-//  se enciendan y apaguen a cada rato cuando el valor está en el límite.
-// ---------------------------------------------------------------------
+// Histéresis: para entrar en BAJA/ALTA basta cruzar el umbral; para
+// salir hay que alejarse 'histeresis' unidades. Evita que los relés
+// se enciendan y apaguen a cada rato cuando el valor está en el límite
 enum EstadoNivel : uint8_t {
     NIVEL_DESCONOCIDO = 0,
     NIVEL_BAJO,
@@ -147,9 +137,7 @@ inline EstadoNivel clasificarConHisteresis(EstadoNivel actual, float v,
     }
 }
 
-// ---------------------------------------------------------------------
-//  Estado general del sistema (de mayor a menor prioridad)
-// ---------------------------------------------------------------------
+// Estado general del sistema (de mayor a menor prioridad)
 enum EstadoSistema : uint8_t {
     ESTADO_NORMAL = 0,
     ESTADO_HUMEDAD_ALTA,
@@ -186,9 +174,7 @@ inline const char* nombreNivel(EstadoNivel e) {
     }
 }
 
-// ---------------------------------------------------------------------
-//  ReglaControl: decide qué hacer a partir de las lecturas
-// ---------------------------------------------------------------------
+// ReglaControl: decide qué hacer a partir de las lecturas
 class ReglaControl {
 public:
     explicit ReglaControl(const Ajustes& ajustes)
@@ -215,7 +201,7 @@ public:
         estadoAire = (h.valor > 0.5f) ? NIVEL_ALTO : NIVEL_NORMAL;
     }
 
-    // usada = false si la sonda de suelo no está instalada.
+    // usada = false si la sonda de suelo no está instalada
     void evaluarHumedadSuelo(const LecturaDato& s, bool usada) {
         if (!usada)          { estadoSuelo = NIVEL_NO_USADO; return; }
         if (!s.esValida())   { estadoSuelo = NIVEL_DESCONOCIDO; return; }
@@ -231,13 +217,13 @@ public:
     // --- Decisiones ---
 
     // Ventilar por calor, por humedad del aire alta o, por seguridad,
-    // si el sensor de temperatura falla.
+    // si el sensor de temperatura falla
     bool requiereVentilacion() const {
         return calor || fallaTemperatura || estadoAire == NIVEL_ALTO;
     }
 
-    // Riego automático solo cuando la sonda confirma suelo seco y hay agua.
-    // Sin lectura válida del suelo no se riega de forma automática.
+    // Riego automático solo cuando la sonda confirma suelo seco y hay agua
+    // Sin lectura válida del suelo no se riega de forma automática
     bool requiereRiego() const {
         return !tanqueVacio && estadoSuelo == NIVEL_BAJO;
     }
@@ -280,10 +266,8 @@ private:
     bool tanqueVacio;
 };
 
-// ---------------------------------------------------------------------
-//  CicloTrabajoBomba: pulsos de riego con pausa mínima y cupo por hora
-//  (la bomba solo admite lapsos cortos: máx. 20 min por hora)
-// ---------------------------------------------------------------------
+// CicloTrabajoBomba: pulsos de riego con pausa mínima y cupo por hora
+// (la bomba solo admite lapsos cortos: máx. 20 min por hora)
 class CicloTrabajoBomba {
 public:
     CicloTrabajoBomba(unsigned long pulsoMs, unsigned long pausaMs,
@@ -292,7 +276,7 @@ public:
           encendida(false), haRegado(false), inicioPulso(0), duracionPulso(0),
           finUltimoPulso(0), inicioVentana(0), usadoEnVentana(0) {}
 
-    // forzado = riego manual: ignora la pausa, pero respeta el cupo por hora.
+    // forzado = riego manual: ignora la pausa, pero respeta el cupo por hora
     bool solicitarPulso(unsigned long ahora, bool forzado = false) {
         renovarVentana(ahora);
         if (encendida) return false;
@@ -306,7 +290,7 @@ public:
         return true;
     }
 
-    // Devuelve true si el pulso acaba de terminar.
+    // Devuelve true si el pulso acaba de terminar
     bool actualizar(unsigned long ahora) {
         renovarVentana(ahora);
         if (encendida && (ahora - inicioPulso) >= duracionPulso) {
@@ -340,11 +324,9 @@ private:
     }
 };
 
-// ---------------------------------------------------------------------
-//  Reparto de energía: con todo alimentado desde el USB del Arduino
-//  solo una carga grande puede estar encendida. Prioridad:
-//  bomba > ventilador.
-// ---------------------------------------------------------------------
+// Reparto de energía: con todo alimentado desde el USB del Arduino
+// solo una carga grande puede estar encendida. Prioridad:
+// bomba > ventilador
 struct CargasPermitidas {
     bool bomba;
     bool ventilador;
@@ -357,12 +339,10 @@ inline CargasPermitidas repartirEnergia(bool quiereBomba, bool quiereVentilador,
     return c;
 }
 
-// ---------------------------------------------------------------------
-//  RelojSoftware: hora del día a partir de millis() (sin módulo RTC).
-//  Se pone en hora con el comando HORA o automáticamente desde la
-//  aplicación. Se muestra en la LCD y en la telemetría.
-//  Precisión típica: unos minutos por día.
-// ---------------------------------------------------------------------
+// RelojSoftware: hora del día a partir de millis() (sin módulo RTC)
+// Se pone en hora con el comando HORA o automáticamente desde la
+// aplicación. Se muestra en la LCD y en la telemetría.
+// Precisión típica: unos minutos por día
 const unsigned long SEGUNDOS_POR_DIA = 86400UL;
 
 class RelojSoftware {
@@ -385,7 +365,7 @@ public:
     bool estaSincronizado() const               { return sincronizado; }
 
     // Con el reloj interno de millis() (~49 días) el desbordamiento cada
-    // 49.7 días introduce un salto; se corrige re-anclando la base cada hora.
+    // 49.7 días introduce un salto; se corrige re-anclando la base cada hora
     void mantener(unsigned long ahoraMs) {
         if ((ahoraMs - msBase) >= 3600000UL) {
             const bool s = sincronizado;
@@ -400,9 +380,7 @@ private:
     bool sincronizado;
 };
 
-// ---------------------------------------------------------------------
-//  Comandos por el puerto serie: "NOMBRE arg1 arg2 arg3"
-// ---------------------------------------------------------------------
+// Comandos por el puerto serie: "NOMBRE arg1 arg2 arg3"
 struct Comando {
     char nombre[12];
     char texto[12];      // primer argumento como texto (para CAL SUELOSECO...)
@@ -424,7 +402,7 @@ inline bool esNumero(const char* s) {
     return fin != s && *fin == '\0';
 }
 
-// Devuelve la siguiente palabra de 'cursor' (separada por espacios) y avanza el cursor.
+// Devuelve la siguiente palabra de 'cursor' (separada por espacios) y avanza el cursor
 inline char* siguientePalabra(char*& cursor) {
     while (*cursor == ' ') cursor++;
     if (*cursor == '\0') return nullptr;
@@ -435,7 +413,7 @@ inline char* siguientePalabra(char*& cursor) {
 }
 
 // Modifica 'linea' (la separa en palabras). Devuelve false si está vacía.
-// Acepta ':' como separador para escribir la hora como HORA 14:30:00.
+// Acepta ':' como separador para escribir la hora como HORA 14:30:00
 inline bool parsearComando(char* linea, Comando& cmd) {
     memset(&cmd, 0, sizeof(cmd));
     for (char* p = linea; *p; p++) {

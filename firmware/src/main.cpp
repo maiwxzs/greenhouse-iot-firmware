@@ -1,11 +1,9 @@
-// =====================================================================
-//  Smart Greenhouse IoT — Punto de entrada (setup / loop)
+// Smart Greenhouse IoT: Punto de entrada (setup / loop)
 //
-//  Conexiones: hardware/circuits/conexiones.md
-//  Ajustes:    include/Config.h (y por comandos: docs/protocolo-serie.md)
-//  Clases:    include/GreenhouseCore.hpp  (hardware)
+// Conexiones: hardware/circuits/conexiones.md
+// Ajustes:    include/Config.h (y por comandos: docs/protocolo-serie.md)
+// Clases:    include/GreenhouseCore.hpp  (hardware)
 //             include/Logica.h            (decisiones, sin pines)
-// =====================================================================
 
 #include <Arduino.h>
 #include "Config.h"

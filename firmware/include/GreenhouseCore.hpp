@@ -1,10 +1,9 @@
 #ifndef GREENHOUSE_CORE_HPP
 #define GREENHOUSE_CORE_HPP
 
-// =====================================================================
-//  Smart Greenhouse IoT — Núcleo orientado a objetos (hardware)
+// Smart Greenhouse IoT: Núcleo orientado a objetos (hardware)
 //
-//  Jerarquía (ver docs/diagramas/uml-clases):
+// Jerarquía (ver docs/diagramas/uml-clases):
 //
 //    Sensor (abstracta)
 //      ├── SensorTemperatura        DS18B20 sumergible (1-Wire)
@@ -21,10 +20,9 @@
 //    BotonPulsador, PantallaLCD, AlmacenAjustes
 //    ControladorArduino, Invernadero
 //
-//  La lógica de decisión (sin pines) está en Logica.h.
-//  El Arduino Uno no tiene la STL de C++: se usan const char*, arreglos
-//  de tamaño fijo y la clase Print de Arduino.
-// =====================================================================
+// La lógica de decisión (sin pines) está en Logica.h
+// El Arduino Uno no tiene la STL de C++: se usan const char*, arreglos
+// de tamaño fijo y la clase Print de Arduino
 
 #include <Arduino.h>
 #include <EEPROM.h>
@@ -39,9 +37,7 @@
 
 #define FIRMWARE_VERSION "3.0.0"
 
-// ---------------------------------------------------------------------
-//  Utilidades de impresión
-// ---------------------------------------------------------------------
+// Utilidades de impresión
 inline void imprimirDosDigitos(Print& p, uint8_t v) {
     if (v < 10) p.print('0');
     p.print(v);
@@ -78,9 +74,7 @@ inline const __FlashStringHelper* textoNivel(EstadoNivel e) {
     }
 }
 
-// ---------------------------------------------------------------------
-//  AlmacenAjustes: lee y guarda los ajustes en la EEPROM interna
-// ---------------------------------------------------------------------
+// AlmacenAjustes: lee y guarda los ajustes en la EEPROM interna
 class AlmacenAjustes {
 public:
     static const int DIRECCION = 0;
@@ -101,7 +95,7 @@ public:
         return a;
     }
 
-    // Devuelve true si había ajustes guardados válidos.
+    // Devuelve true si había ajustes guardados válidos
     static bool cargar(Ajustes& a) {
         EEPROM.get(DIRECCION, a);
         if (ajustesValidos(a)) return true;
@@ -110,16 +104,14 @@ public:
         return false;
     }
 
-    // EEPROM.put solo escribe los bytes que cambiaron (cuida la memoria).
+    // EEPROM.put solo escribe los bytes que cambiaron (cuida la memoria)
     static void guardar(Ajustes& a) {
         sellarAjustes(a);
         EEPROM.put(DIRECCION, a);
     }
 };
 
-// ---------------------------------------------------------------------
-//  Sensor: clase base abstracta
-// ---------------------------------------------------------------------
+// Sensor: clase base abstracta
 class Sensor {
 public:
     uint8_t idPin;
@@ -144,9 +136,7 @@ protected:
     }
 };
 
-// ---------------------------------------------------------------------
-//  SensorTemperatura: DS18B20 sumergible (bus 1-Wire), lectura no bloqueante
-// ---------------------------------------------------------------------
+// SensorTemperatura: DS18B20 sumergible (bus 1-Wire), lectura no bloqueante
 class SensorTemperatura : public Sensor {
 public:
     float temperatura;
@@ -197,13 +187,11 @@ private:
     }
 };
 
-// ---------------------------------------------------------------------
-//  SensorHumedad: módulo HR202 con relé (humedad relativa del AIRE)
-//  El módulo compara la humedad con el umbral de su potenciómetro y
-//  conmuta su relé. El Arduino lee ese relé como contacto seco:
-//  COM a GND y NO al pin, con pull-up interno. Contacto cerrado = alta.
-//  Un cambio se acepta tras varias lecturas iguales (antirrebote).
-// ---------------------------------------------------------------------
+// SensorHumedad: módulo HR202 con relé (humedad relativa del AIRE)
+// El módulo compara la humedad con el umbral de su potenciómetro y
+// conmuta su relé. El Arduino lee ese relé como contacto seco:
+// COM a GND y NO al pin, con pull-up interno. Contacto cerrado = alta.
+// Un cambio se acepta tras varias lecturas iguales (antirrebote)
 class SensorHumedad : public Sensor {
 public:
     bool humedadAlta;     // estado confirmado
@@ -234,12 +222,10 @@ private:
     uint8_t repeticiones;
 };
 
-// ---------------------------------------------------------------------
-//  SondaResistiva: dos electrodos (clavos o cables) entre un pin
-//  analógico y GND. El pull-up interno del Arduino (~35 kΩ) forma un
-//  divisor con la resistencia del medio: más agua = lectura más baja.
-//  Solo se energiza durante la medición para reducir la corrosión.
-// ---------------------------------------------------------------------
+// SondaResistiva: dos electrodos (clavos o cables) entre un pin
+// analógico y GND. El pull-up interno del Arduino (~35 kΩ) forma un
+// divisor con la resistencia del medio: más agua = lectura más baja
+// Solo se energiza durante la medición para reducir la corrosión
 class SondaResistiva : public Sensor {
 public:
     int valorAdc;
@@ -261,7 +247,7 @@ public:
     }
 
 protected:
-    // Pin en LOW: los dos electrodos quedan a 0 V, sin corriente.
+    // Pin en LOW: los dos electrodos quedan a 0 V, sin corriente
     void descansar() {
         pinMode(idPin, OUTPUT);
         digitalWrite(idPin, LOW);
@@ -304,9 +290,7 @@ private:
     const Ajustes& cfg;
 };
 
-// ---------------------------------------------------------------------
-//  Actuador: clase base abstracta
-// ---------------------------------------------------------------------
+// Actuador: clase base abstracta
 class Actuador {
 public:
     uint8_t idPin;
@@ -323,9 +307,7 @@ public:
     void fijar(bool on) { if (on) encender(); else apagar(); }
 };
 
-// ---------------------------------------------------------------------
-//  IndicadorLED: LED con resistencia de 220 Ω
-// ---------------------------------------------------------------------
+// IndicadorLED: LED con resistencia de 220 Ω
 class IndicadorLED : public Actuador {
 public:
     const char* color;
@@ -339,7 +321,7 @@ public:
     void apagar() override      { parpadeo = false; escribir(false); }
     void cambiarEstado()        { parpadeo = false; escribir(!estado); }
 
-    // Dos LEDs con fase invertida parpadean alternados.
+    // Dos LEDs con fase invertida parpadean alternados
     void parpadear(unsigned long periodo, bool invertido = false) {
         parpadeo = true;
         periodoMs = periodo;
@@ -362,9 +344,7 @@ private:
     }
 };
 
-// ---------------------------------------------------------------------
-//  Zumbador: pitidos no bloqueantes
-// ---------------------------------------------------------------------
+// Zumbador: pitidos no bloqueantes
 class Zumbador : public Actuador {
 public:
     bool pasivo;
@@ -418,9 +398,7 @@ private:
     }
 };
 
-// ---------------------------------------------------------------------
-//  ActuadorRele: carga controlada por un módulo relé
-// ---------------------------------------------------------------------
+// ActuadorRele: carga controlada por un módulo relé
 class ActuadorRele : public Actuador {
 public:
     bool activoEnBajo;
@@ -430,7 +408,7 @@ public:
         : Actuador(pin), activoEnBajo(activoBajo), nombre(nom) {}
 
     void inicializar() override {
-        // Primero el nivel "apagado" y luego salida: el relé no hace clic al arrancar.
+        // Primero el nivel "apagado" y luego salida: el relé no hace clic al arrancar
         digitalWrite(idPin, nivelPin(false));
         pinMode(idPin, OUTPUT);
         escribir(false);
@@ -453,9 +431,7 @@ public:
     Ventilador(uint8_t pin, bool activoBajo) : ActuadorRele(pin, activoBajo, "Ventilador") {}
 };
 
-// ---------------------------------------------------------------------
-//  BombaAgua: riego por pulsos respetando el ciclo de trabajo
-// ---------------------------------------------------------------------
+// BombaAgua: riego por pulsos respetando el ciclo de trabajo
 class BombaAgua : public ActuadorRele {
 public:
     BombaAgua(uint8_t pin, bool activoBajo)
@@ -463,7 +439,7 @@ public:
           ciclo(BOMBA_PULSO_MS, BOMBA_PAUSA_MIN_MS, BOMBA_MAX_MS_POR_HORA, VENTANA_HORA_MS),
           manual(false), ultimoAhora(0) {}
 
-    // forzado = riego manual (botón o comando): ignora la pausa entre pulsos.
+    // forzado = riego manual (botón o comando): ignora la pausa entre pulsos
     bool solicitarPulso(unsigned long ahora, bool forzado = false) {
         ultimoAhora = ahora;
         if (!ciclo.solicitarPulso(ahora, forzado)) return false;
@@ -497,9 +473,7 @@ private:
     unsigned long ultimoAhora;
 };
 
-// ---------------------------------------------------------------------
-//  BotonPulsador: con antirrebote. Pulsación corta y larga.
-// ---------------------------------------------------------------------
+// BotonPulsador: con antirrebote. Pulsación corta y larga.
 enum EventoBoton : uint8_t { BOTON_NADA = 0, BOTON_CORTO, BOTON_LARGO };
 
 class BotonPulsador {
@@ -539,9 +513,7 @@ private:
     bool largoEmitido;
 };
 
-// ---------------------------------------------------------------------
-//  ResumenEstado: lo que se muestra en la pantalla
-// ---------------------------------------------------------------------
+// ResumenEstado: lo que se muestra en la pantalla
 struct ResumenEstado {
     bool tempValida;
     float temperatura;
@@ -558,9 +530,7 @@ struct ResumenEstado {
     uint8_t minuto;
 };
 
-// ---------------------------------------------------------------------
-//  PantallaLCD: LCD 16x2 con módulo I2C (dirección 0x27 o 0x3F, se detecta)
-// ---------------------------------------------------------------------
+// PantallaLCD: LCD 16x2 con módulo I2C (dirección 0x27 o 0x3F, se detecta)
 #if USAR_LCD
 class PantallaLCD {
 public:
@@ -587,7 +557,7 @@ public:
 
     bool disponible() const { return lcd != nullptr; }
 
-    // Devuelve true si toca cambiar de página.
+    // Devuelve true si toca cambiar de página
     bool tocaCambiarPagina(unsigned long ahora) const {
         return (ahora - tPagina) >= CAMBIO_PAGINA_LCD_MS;
     }
@@ -655,9 +625,7 @@ private:
 };
 #endif
 
-// ---------------------------------------------------------------------
-//  Componentes que maneja el controlador
-// ---------------------------------------------------------------------
+// Componentes que maneja el controlador
 struct Componentes {
     SensorTemperatura&  temperatura;
     SensorHumedad&      humedadAire;
@@ -672,10 +640,8 @@ struct Componentes {
     BotonPulsador&      boton;
 };
 
-// ---------------------------------------------------------------------
-//  ControladorArduino: lee sensores, evalúa reglas, mueve actuadores,
-//  atiende comandos y envía telemetría (una línea JSON por muestra).
-// ---------------------------------------------------------------------
+// ControladorArduino: lee sensores, evalúa reglas, mueve actuadores,
+// atiende comandos y envía telemetría (una línea JSON por muestra)
 class ControladorArduino {
 public:
     unsigned long puertoSerie;
@@ -718,7 +684,7 @@ public:
     }
 
     void inicializar() {
-        // Actuadores primero: relés apagados lo antes posible.
+        // Actuadores primero: relés apagados lo antes posible
         for (uint8_t i = 0; i < numActuadores; i++) actuadores[i]->inicializar();
         Serial.begin(puertoSerie);
         const bool habiaAjustes = AlmacenAjustes::cargar(cfg);
@@ -744,7 +710,7 @@ public:
         ultimoMuestreo = millis();
     }
 
-    // Se llama en cada vuelta del loop.
+    // Se llama en cada vuelta del loop
     void ciclo(unsigned long ahora) {
         reloj.mantener(ahora);
         if (USAR_BOTON) atenderBoton(c.boton.actualizar(ahora), ahora);
@@ -782,10 +748,10 @@ public:
         deseoVentilador = regla.requiereVentilacion();
 
         // Bomba: pulsos mientras haga falta. Un riego manual termina su pulso,
-        // salvo que se acabe el agua.
+        // salvo que se acabe el agua
         if (regla.requiereRiego()) {
             if (!c.bomba.estado) {
-                // Con alimentación solo-Arduino, primero se apaga el ventilador.
+                // Con alimentación solo-Arduino, primero se apaga el ventilador
                 if (ALIMENTACION_SOLO_ARDUINO) c.ventilador.apagar();
                 c.bomba.solicitarPulso(ahora);
             }
@@ -873,7 +839,7 @@ private:
     uint8_t largoLinea;
     bool lineaDescartada;
 
-    // Respeta el límite de energía cada vez que cambia algo.
+    // Respeta el límite de energía cada vez que cambia algo
     void aplicarCargas() {
         const CargasPermitidas p = repartirEnergia(c.bomba.estado, deseoVentilador, ALIMENTACION_SOLO_ARDUINO);
         if (c.ventilador.estado != p.ventilador) c.ventilador.fijar(p.ventilador);
@@ -938,7 +904,7 @@ private:
             Serial.println(F("# Alarma silenciada 10 min (boton)"));
             return;
         }
-        // Pulsación corta: si la alarma está sonando, la silencia; si no, riega.
+        // Pulsación corta: si la alarma está sonando, la silencia; si no, riega
         if (alarmaActiva && !silenciado && USAR_ZUMBADOR) {
             silenciarAlarma(ahora);
             Serial.println(F("# Alarma silenciada 10 min (boton)"));
@@ -1006,7 +972,7 @@ private:
         Serial.println(F("\"}"));
     }
 
-    // Aplica un cambio solo si el resultado es válido; luego lo guarda.
+    // Aplica un cambio solo si el resultado es válido; luego lo guarda
     bool confirmarCambio(Ajustes& nuevo, const char* cmd) {
         sellarAjustes(nuevo);
         if (!ajustesValidos(nuevo)) {
@@ -1077,7 +1043,7 @@ private:
         else if (!strcmp(que, "SUELOHUMEDO")) nuevo.adcSueloHumedo = (int16_t)c.humedadSuelo.medirAdc();
         else if (!strcmp(que, "TANQUE")) {
             // Con los dos cables DENTRO del agua: el umbral queda a mitad de camino
-            // entre la lectura con agua y la lectura al aire (1023).
+            // entre la lectura con agua y la lectura al aire (1023)
             nuevo.adcUmbralAgua = (int16_t)((c.nivelAgua.medirAdc() + 1023) / 2);
         } else {
             responderError(F("Uso: CAL SUELOSECO|SUELOHUMEDO|TANQUE"));
@@ -1092,9 +1058,7 @@ private:
     }
 };
 
-// ---------------------------------------------------------------------
-//  Invernadero: entidad principal del sistema
-// ---------------------------------------------------------------------
+// Invernadero: entidad principal del sistema
 class Invernadero {
 public:
     const char* idInvernadero;

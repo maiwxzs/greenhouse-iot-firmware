@@ -33,7 +33,6 @@ export default function Historial({ almacen, version }) {
       if (vivo) { setMinutos(m); setEventos(e); }
     });
     return () => { vivo = false; };
-    // version: se recarga cuando llegan datos nuevos (cada minuto)
   }, [almacen, rango, version]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const serie = useMemo(() => serieMinutos(minutos), [minutos]);

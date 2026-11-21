@@ -1,7 +1,5 @@
-// =====================================================================
-//  Pruebas unitarias de la lógica del invernadero (include/Logica.h)
-//  Se ejecutan en el computador, sin Arduino:   pio test -e native
-// =====================================================================
+// Pruebas unitarias de la lógica del invernadero (include/Logica.h)
+// Se ejecutan en el computador, sin Arduino:   pio test -e native
 
 #include <unity.h>
 #include "Logica.h"

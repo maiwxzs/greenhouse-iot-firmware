@@ -1,14 +1,11 @@
-// Proceso principal de la aplicación de escritorio Invernadero IoT.
-// Abre la ventana con la interfaz (dist/) y resuelve el acceso al puerto USB del Arduino:
-// Electron no trae el diálogo de puertos del navegador, así que la lista se envía a la
-// interfaz (componente SelectorPuerto) y esta devuelve el puerto elegido.
+// Proceso principal: ventana y selección del puerto serie (ver SelectorPuerto)
 const { app, BrowserWindow, Menu, ipcMain, shell } = require("electron");
 const path = require("node:path");
 
 const PRUEBA = process.argv.includes("--prueba");
 
 let ventana = null;
-let responderPuerto = null;   // callback pendiente de navigator.serial.requestPort()
+let responderPuerto = null;   // callback de requestPort()
 let puertos = [];
 
 function enviarPuertos() {
@@ -54,12 +51,12 @@ function crearVentana() {
     puertos = puertos.filter((p) => p.portId !== puerto.portId);
     enviarPuertos();
   });
-  // Solo se concede el acceso a puertos serie; ningún otro permiso del navegador
+  // solo permisos de puerto serie
   sesion.setPermissionCheckHandler((_wc, permiso) => permiso === "serial");
   sesion.setDevicePermissionHandler((detalles) => detalles.deviceType === "serial");
   sesion.setPermissionRequestHandler((_wc, _permiso, responder) => responder(false));
 
-  // Los enlaces externos se abren en el navegador del sistema; la ventana no navega a otros sitios
+  // enlaces externos al navegador del sistema
   ventana.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https://")) shell.openExternal(url);
     return { action: "deny" };
@@ -68,7 +65,7 @@ function crearVentana() {
 
   ventana.loadFile(path.join(__dirname, "..", "dist", "index.html"));
   if (PRUEBA) {
-    // Prueba de humo de la integración continua: la interfaz debe cargar y dibujar la maqueta
+    // prueba de humo para CI
     ventana.webContents.once("did-finish-load", async () => {
       await new Promise((r) => setTimeout(r, 2500));
       const ok = await ventana.webContents.executeJavaScript(
@@ -89,7 +86,7 @@ ipcMain.on("puerto-elegido", (_evento, portId) => {
   puertos = [];
 });
 
-// Una sola instancia: si ya está abierta, se trae al frente
+// una sola instancia
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {

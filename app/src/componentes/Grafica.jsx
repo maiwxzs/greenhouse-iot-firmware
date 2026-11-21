@@ -6,7 +6,7 @@ const dos = (n) => String(n).padStart(2, "0");
 export const formatoHora = (t) => { const d = new Date(t); return `${dos(d.getHours())}:${dos(d.getMinutes())}`; };
 export const formatoFecha = (t) => { const d = new Date(t); return `${dos(d.getDate())}/${dos(d.getMonth() + 1)} ${formatoHora(t)}`; };
 
-// Serie temporal con banda de rango ideal, líneas de umbral y cursor con valor exacto
+// serie temporal con banda, umbrales y cursor
 export function GraficaTiempo({ datos, series, desde, hasta, dominio, banda, umbrales = [], alto = 200, unidad = "", formatoX = formatoHora, rangoArea }) {
   const ref = useRef(null);
   const [cursor, setCursor] = useState(null);
@@ -24,7 +24,6 @@ export function GraficaTiempo({ datos, series, desde, hasta, dominio, banda, umb
     const y = scaleLinear().domain([y0, y1]).nice(5).range([alto - m.b, m.s]);
     const caminos = series.map((s) => line().defined((d) => typeof d[s.campo] === "number")
       .x((d) => x(d.t)).y((d) => y(d[s.campo])).curve(curveMonotoneX)(datos) || "");
-    // Relleno degradado bajo cada serie, hasta el piso del gráfico
     const areas = series.map((s) => area().defined((d) => typeof d[s.campo] === "number")
       .x((d) => x(d.t)).y0(alto - m.b).y1((d) => y(d[s.campo])).curve(curveMonotoneX)(datos) || "");
     const areaRango = rangoArea ? area().defined((d) => typeof d[rangoArea.min] === "number")
@@ -103,8 +102,7 @@ export function GraficaTiempo({ datos, series, desde, hasta, dominio, banda, umb
   );
 }
 
-// Franjas de encendido de bomba y ventilador, y del contacto de humedad del aire.
-// umbral: fracción a partir de la cual se considera encendido (0 en resúmenes por minuto).
+// franjas on/off; umbral = fracción mínima para considerarlo encendido
 export function TiraActuadores({ datos, desde, hasta, campos, umbral = 0.5 }) {
   const total = Math.max(1, hasta - desde);
   const pos = (t) => Math.max(0, Math.min(100, ((t - desde) / total) * 100));

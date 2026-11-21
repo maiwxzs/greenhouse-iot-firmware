@@ -1,5 +1,4 @@
-// Selector del puerto USB en la aplicación de escritorio. Electron no trae el diálogo del navegador:
-// el proceso principal envía la lista de puertos y esta ventana devuelve el elegido.
+// Selector de puerto (Electron no trae el diálogo de Web Serial)
 import { useEffect, useState } from "react";
 import { LuCable, LuX } from "react-icons/lu";
 

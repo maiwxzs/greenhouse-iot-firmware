@@ -1,5 +1,4 @@
-// Ficha de cada pieza de la maqueta: qué es, cómo se conecta y qué está haciendo ahora.
-// Las medidas y conexiones son las de docs/maqueta.md y hardware/circuits/conexiones.md.
+// Fichas de las piezas (ver docs/maqueta.md y hardware/circuits/conexiones.md)
 const si = (v) => v === 1 || v === true;
 
 function razonVentilador(t, cfg) {

@@ -25,7 +25,7 @@ export default function Ajustes({ cfg, activo, enviar }) {
   const guardar = async (e) => {
     e.preventDefault();
     const cmds = CAMPOS.filter((c) => cambiados.includes(c.nombre)).map((c) => `${c.cmd} ${Number(valores[c.nombre])}`);
-    // Primero los máximos: así un mínimo nuevo nunca queda por encima del máximo anterior
+    // máximos primero para no cruzar min > max
     cmds.sort((a, b) => (/MAX|CRIT/.test(b) ? 1 : 0) - (/MAX|CRIT/.test(a) ? 1 : 0));
     for (const c of cmds) { await enviar(c); await new Promise((r) => setTimeout(r, 250)); }
   };

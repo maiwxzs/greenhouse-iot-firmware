@@ -1,9 +1,9 @@
-// Registro de datos: convierte la telemetría en historial, resúmenes y eventos.
+// Telemetría -> historial, resúmenes por minuto y eventos
 import { CAUDAL_L_POR_S, textoEstado } from "./protocolo.js";
 
 export const SEGUNDOS_POR_MUESTRA = 2;
-export const VENTANA_VIVO_MS = 30 * 60 * 1000;   // lo que se guarda en memoria para las gráficas en vivo
-const LOTE_ESCRITURA = 15;                        // lecturas que se agrupan antes de escribir en disco
+export const VENTANA_VIVO_MS = 30 * 60 * 1000;   // ventana en memoria
+const LOTE_ESCRITURA = 15;
 
 function minutoDe(t) {
   return Math.floor(t / 60000) * 60000;
@@ -34,7 +34,7 @@ function acumular(m, l) {
   m.estado = l.estado;
 }
 
-// Detecta qué cambió entre dos lecturas y lo describe como eventos
+// diferencias entre dos lecturas -> eventos
 export function detectarEventos(antes, ahora) {
   const ev = [];
   const t = ahora.t;
@@ -68,7 +68,6 @@ export class Registro {
     this.ultimaLimpieza = 0;
   }
 
-  // Recibe una telemetría del Arduino (o del simulador)
   agregar(tel) {
     const lectura = { ...tel, t: Date.now() };
     delete lectura.tipo;
@@ -100,7 +99,7 @@ export class Registro {
     return lectura;
   }
 
-  // Eventos que no vienen de la telemetría (conexión, comandos, errores)
+  // eventos externos (conexión, comandos, errores)
   anotar(tipo, texto, tono = "neutro") {
     const ev = { t: Date.now(), tipo, texto, tono };
     this.almacen.guardar("eventos", [ev]);
@@ -122,14 +121,13 @@ export class Registro {
   }
 }
 
-// ----------------------------- Estadísticas -----------------------------
 
 export function claveDia(t) {
   const d = new Date(t);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// Resumen por día a partir de los minutos guardados
+// resumen diario
 export function resumirPorDia(minutos, eventos = []) {
   const dias = new Map();
   for (const m of minutos) {
@@ -165,7 +163,7 @@ export function resumirPorDia(minutos, eventos = []) {
   }));
 }
 
-// Serie para gráficas a partir de los minutos (promedio y extremos)
+// serie por minuto (promedio, mín, máx)
 export function serieMinutos(minutos) {
   return minutos.map((m) => ({
     t: m.t,

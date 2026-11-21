@@ -75,10 +75,10 @@ Los valores son los de fábrica y se cambian con comandos como `TEMP 28` o `SUEL
 
 **Invernadero IoT** es una aplicación para Windows 10 y 11 que se instala con un instalador `.exe` y se conecta al Arduino por el cable USB. Complementa al firmware: el Arduino mide, decide y envía una lectura cada 2 s; la aplicación muestra, guarda y analiza, sin ocupar memoria del Arduino.
 
+- **Tablero en tiempo real:** la pantalla principal muestra el estado, medidores de temperatura y humedad del suelo con sus zonas, mínimos, máximos y tendencia, la humedad del aire, el tanque, la bomba, el ventilador y la alarma con su tiempo en el estado actual, la réplica de la LCD, los últimos eventos y gráficas de 30 minutos.
 - **Maqueta interactiva:** la misma maqueta del repositorio, con sus medidas y materiales, se mueve con los datos reales. El ventilador gira con inercia y el aire cruza la planta, el agua corre por la manguera y gotea sobre la maceta, la tierra cambia de color con la humedad, las hojas caen con el suelo seco, el tanque baja, aparece rocío en el acrílico con el aire húmedo y el zumbador emite ondas con la alarma. Cada pieza se toca para ver qué es, cómo está conectada, qué hace en ese momento y, cuando corresponde, para actuar: regar, silenciar la alarma o levantar la tapa de la caja para ver el Arduino, la protoboard y los relés.
 - **Réplica de la pantalla LCD:** muestra exactamente lo que escribe la pantalla de la caja, con la misma matriz de puntos y las mismas dos páginas.
-- **Tablero:** estado del invernadero, lecturas con su traza de los últimos 30 minutos y bitácora de lo último que pasó. Cada lectura resalta su pieza en la maqueta.
-- **Gráficas, historial y eventos:** lecturas de los últimos 2 días y resúmenes por minuto de 180 días guardados en el equipo, estadísticas diarias y exportación a CSV.
+- **Historial y eventos:** lecturas de los últimos 2 días y resúmenes por minuto de 180 días guardados en el equipo, estadísticas diarias y exportación a CSV.
 - **Ajustes, calibración y consola** de comandos.
 - **Demostración:** un Arduino simulado con el mismo protocolo, a velocidad real o ×20, con botones para provocar calor, sequía, aire húmedo o tanque vacío y ver cómo reacciona el control.
 

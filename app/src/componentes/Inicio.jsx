@@ -1,5 +1,6 @@
-// Vista principal: la maqueta interactiva y, al lado, el tablero con las lecturas y la réplica de la pantalla.
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+// Vista de la maqueta
+import { useId, useMemo } from "react";
+import { useSuave } from "../lib/tiempo.js";
 import { scaleLinear } from "d3-scale";
 import { area, curveMonotoneX, curveStepAfter, line } from "d3-shape";
 import { LuBellOff, LuDroplets, LuGlassWater, LuPlay, LuPlugZap, LuX } from "react-icons/lu";
@@ -11,7 +12,7 @@ import { textoEstado } from "../lib/protocolo.js";
 
 const pct = ([x, y]) => ({ left: `${((x - VB.x) / VB.w) * 100}%`, top: `${((y - VB.y) / VB.h) * 100}%` });
 
-// Trazo de los últimos 30 minutos con relleno degradado, referencias de los umbrales y el punto en vivo
+// sparkline de 30 min
 function Traza({ datos, campo, dominio, marcas = [], banda, escalon, color }) {
   const W = 220, H = 40;
   const uid = useId().replace(/:/g, "");
@@ -50,26 +51,6 @@ function Traza({ datos, campo, dominio, marcas = [], banda, escalon, color }) {
       ) : <line x1="0" x2={W} y1={H / 2} y2={H / 2} className="traza-vacia" />}
     </svg>
   );
-}
-
-// Número que se desliza suavemente hasta el nuevo valor en lugar de saltar
-function useSuave(valor, ms = 700) {
-  const [mostrado, setMostrado] = useState(valor);
-  const desde = useRef(valor);
-  useEffect(() => {
-    if (typeof valor !== "number" || typeof desde.current !== "number") { desde.current = valor; setMostrado(valor); return undefined; }
-    const a = desde.current, t0 = performance.now();
-    let id;
-    const paso = (ahora) => {
-      const k = Math.min(1, (ahora - t0) / ms), e = 1 - (1 - k) ** 3;
-      const v = a + (valor - a) * e;
-      desde.current = v; setMostrado(v);
-      if (k < 1) id = requestAnimationFrame(paso);
-    };
-    id = requestAnimationFrame(paso);
-    return () => cancelAnimationFrame(id);
-  }, [valor, ms]);
-  return mostrado;
 }
 
 function Lectura({ id, titulo, valor, unidad, nota, alerta, foco, setFoco, setSel, children }) {

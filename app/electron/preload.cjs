@@ -1,4 +1,4 @@
-// Puente mínimo entre la interfaz y el proceso principal: solo la elección del puerto USB.
+// IPC: elección del puerto serie
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("escritorio", {

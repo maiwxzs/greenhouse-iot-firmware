@@ -1,8 +1,7 @@
-// =====================================================================
-//  Smart Greenhouse IoT - Version para simular en Tinkercad Circuits
+// Smart Greenhouse IoT - Version para simular en Tinkercad Circuits
 //
-//  Tinkercad no tiene el DS18B20, el modulo HR202 ni los modulos rele, asi que
-//  esta version usa piezas equivalentes (ver docs/tinkercad.md):
+// Tinkercad no tiene el DS18B20, el modulo HR202 ni los modulos rele, asi que
+// esta version usa piezas equivalentes (ver docs/tinkercad.md):
 //
 //    DS18B20      -> sensor de temperatura TMP36        (A3)
 //    Modulo HR202 -> interruptor deslizante (contacto)  (D3)
@@ -13,12 +12,11 @@
 //    Zumbador     -> piezo                              (D10)
 //    LCD I2C      -> "LCD 16 x 2 (I2C)", tipo PCF8574, direccion 0x20 (A4, A5)
 //
-//  Se pega completo en el editor de codigo de Tinkercad (modo Texto).
-//  La logica es la misma del firmware real, simplificada en un solo archivo.
-//  Los tiempos de la bomba son mas cortos para que se note en la simulacion.
-//  Los niveles son int y no enum porque Tinkercad genera los prototipos de
-//  las funciones al inicio del archivo, antes de cualquier tipo propio.
-// =====================================================================
+// Se pega completo en el editor de codigo de Tinkercad (modo Texto)
+// La logica es la misma del firmware real, simplificada en un solo archivo
+// Los tiempos de la bomba son mas cortos para que se note en la simulacion
+// Los niveles son int y no enum porque Tinkercad genera los prototipos de
+// las funciones al inicio del archivo, antes de cualquier tipo propio
 
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -92,8 +90,8 @@ char lcdFila[2][17] = { "", "" };     // lo que ya esta escrito, para no reescri
 char ultimoReporte[80] = "";
 unsigned long ultimoReporteMs = 0;
 
-// El pulsador se captura por interrupcion de cambio de pin (D4 = PCINT20).
-// Asi no se pierde un clic corto mientras el programa escribe en la pantalla.
+// El pulsador se captura por interrupcion de cambio de pin (D4 = PCINT20)
+// Asi no se pierde un clic corto mientras el programa escribe en la pantalla
 ISR(PCINT2_vect) {
   if (digitalRead(PIN_BOTON) == LOW) botonPulsado = true;
 }
@@ -129,7 +127,7 @@ void detenerBomba() {
 
 // Escribe el mensaje en el monitor y lo deja en la primera fila de la pantalla
 // durante 'dura' ms. Si todavia se esta leyendo otro aviso (menos de 1,5 s),
-// el nuevo espera su turno en vez de taparlo.
+// el nuevo espera su turno en vez de taparlo
 void avisar(const char* monitor, const char* pantalla, unsigned long dura) {
   Serial.println(monitor);
   unsigned long ahora = millis();
@@ -175,7 +173,7 @@ void comando(String c) {
 
 // ---------------- Pantalla ----------------
 // Solo envia a la pantalla las filas que cambiaron: asi puede refrescarse
-// rapido sin frenar el resto del programa.
+// rapido sin frenar el resto del programa
 void escribirFila(int fila, const char* txt) {
   char b[17];
   snprintf(b, sizeof b, "%-16s", txt);
@@ -270,8 +268,8 @@ void loop() {
   // procesa cuando pasan 100 ms sin letras nuevas
   if (linea.length() && ahora - ultimoCaracter > 100) { comando(linea); linea = ""; }
 
-  // Pulsador: cada pulsacion = riego manual; si hay alarma, la silencia.
-  // Se atiende al presionar; 300 ms de bloqueo eliminan los rebotes.
+  // Pulsador: cada pulsacion = riego manual; si hay alarma, la silencia
+  // Se atiende al presionar; 300 ms de bloqueo eliminan los rebotes
   bool presionado = digitalRead(PIN_BOTON) == LOW;
   if (presionado && !botonAntes) botonPulsado = true;
   botonAntes = presionado;
@@ -328,8 +326,8 @@ void loop() {
     }
   }
 
-  // Salidas: se actualizan en cada vuelta, asi la bomba arranca apenas se pulsa el boton.
-  // Solo una carga a la vez (todo alimentado desde el Arduino): la bomba tiene prioridad.
+  // Salidas: se actualizan en cada vuelta, asi la bomba arranca apenas se pulsa el boton
+  // Solo una carga a la vez (todo alimentado desde el Arduino): la bomba tiene prioridad
   bool ventOn = ventilar && !bomba;
   digitalWrite(PIN_BOMBA, bomba ? HIGH : LOW);
   digitalWrite(PIN_VENTILADOR, ventOn ? HIGH : LOW);

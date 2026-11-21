@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  LuActivity, LuCalendarDays, LuFastForward, LuFlaskConical, LuGlassWater, LuHouse, LuInfo, LuListChecks,
+  LuCalendarDays, LuGauge, LuFastForward, LuFlaskConical, LuGlassWater, LuHouse, LuInfo, LuListChecks,
   LuPlay, LuPlugZap, LuSlidersHorizontal, LuSparkles, LuSquare, LuTerminal, LuUnplug,
 } from "react-icons/lu";
 import Inicio from "./componentes/Inicio.jsx";
-import EnVivo from "./componentes/EnVivo.jsx";
+import Tablero from "./componentes/Tablero.jsx";
 import Historial from "./componentes/Historial.jsx";
 import Eventos from "./componentes/Eventos.jsx";
 import Ajustes from "./componentes/Ajustes.jsx";
@@ -18,7 +18,7 @@ import { CAUDAL_L_POR_S, comandoHoraActual, interpretarLinea, textoConfirmacion 
 import { generarHistorialDemo } from "./lib/simulador.js";
 
 const VISTAS = [
-  ["inicio", "Invernadero", LuHouse], ["graficas", "Gráficas", LuActivity], ["historial", "Historial", LuCalendarDays],
+  ["tablero", "Tablero", LuGauge], ["inicio", "Maqueta", LuHouse], ["historial", "Historial", LuCalendarDays],
   ["eventos", "Eventos", LuListChecks], ["ajustes", "Ajustes", LuSlidersHorizontal], ["calibracion", "Calibración", LuFlaskConical],
   ["consola", "Consola", LuTerminal],
 ];
@@ -40,8 +40,8 @@ function Logo() {
 let idLinea = 0;
 
 export default function App() {
-  const [vista, setVista] = useState("inicio");
-  // Animaciones activadas por defecto; se pueden reducir desde el menú lateral (se recuerda en este equipo)
+  const [vista, setVista] = useState("tablero");
+  // preferencia guardada en localStorage
   const [animar, setAnimar] = useState(() => { try { return localStorage.getItem("invernadero.animaciones") !== "no"; } catch { return true; } });
   const cambiarAnimar = () => setAnimar((a) => { try { localStorage.setItem("invernadero.animaciones", a ? "no" : "si"); } catch { /* sin almacenamiento */ } return !a; });
   const [cfg, setCfg] = useState(null);
@@ -76,13 +76,13 @@ export default function App() {
     setConsola((c) => [...c.slice(-299), { id: ++idLinea, texto, clase }]);
   }, []);
 
-  // La pantalla de la caja alterna sus dos páginas cada 4 s, como el firmware
+  // páginas de la LCD cada 4 s
   useEffect(() => {
     const id = setInterval(() => setPagina((p) => 1 - p), 4000);
     return () => clearInterval(id);
   }, []);
 
-  // Registro ligado al almacén activo (real o demostración)
+  // registro del almacén activo
   useEffect(() => {
     let vigente = true;
     almacen.abrir().then(async () => {
@@ -100,7 +100,7 @@ export default function App() {
     return () => { vigente = false; registro.current?.reiniciar(); registro.current = null; };
   }, [almacen]);
 
-  // Cada minuto: recarga del historial, agua de hoy y espacio en disco
+  // refresco cada minuto
   useEffect(() => {
     const id = setInterval(() => setVersion((x) => x + 1), 60000);
     return () => clearInterval(id);
@@ -246,14 +246,16 @@ export default function App() {
           <p className="aviso"><LuInfo /> Este entorno no puede comunicarse por USB. La demostración funciona igual.</p>
         )}
 
-        {vista === "inicio" ? (
+        {vista === "tablero" ? (
+          <Tablero t={t} cfg={cfg} vivo={vivo} eventos={eventos} modo={modo} pagina={pagina} enviar={enviar} acciones={acciones}
+            aguaHoy={aguaHoy} soportaSerie={soportaSerie} verEventos={() => setVista("eventos")} />
+        ) : vista === "inicio" ? (
           <Inicio reducir={!animar} eventos={eventos} verEventos={() => setVista("eventos")} t={t} cfg={cfg} vivo={vivo} modo={modo} latido={latido} envio={envio} pagina={pagina}
             sel={sel} setSel={setSel} foco={foco} setFoco={setFoco} enviar={enviar} acciones={acciones}
             aireDesde={aireDesde.current} aguaHoy={aguaHoy} soportaSerie={soportaSerie} />
         ) : (
           <section className="hoja" key={vista}>
             <h1>{VISTAS.find((v) => v[0] === vista)[1]}</h1>
-            {vista === "graficas" && <EnVivo vivo={vivo} cfg={cfg} />}
             {vista === "historial" && <Historial almacen={almacen} version={version} />}
             {vista === "eventos" && <Eventos eventos={eventos} nuevos={nuevos} />}
             {vista === "ajustes" && <Ajustes cfg={cfg} activo={activo} enviar={enviar} />}

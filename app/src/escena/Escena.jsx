@@ -1,5 +1,4 @@
-// Escena interactiva: la maqueta del invernadero dibujada en proyección oblicua, con las mismas
-// medidas de docs/maqueta.md. Cada animación responde a un dato de la telemetría y cada pieza se puede tocar.
+// Maqueta en proyección oblicua (medidas en docs/maqueta.md)
 import { memo, useEffect, useMemo, useRef } from "react";
 import { P, pts, ruta, prisma, circulo, envolvente, unir, caraFrente, caraLado, caraArriba } from "./proyeccion.js";
 import { Z0, ALERO, CUMBRERA, BX0, BX1, BY0, BY1, BZ1, TX0, TX1, TY0, TY1, MACETA, TRAMOS_MANGUERA, USB, HOJAS } from "./geometria.js";
@@ -14,7 +13,7 @@ const BALSA = ["#E2C48E", "#EED8AE", "#C7A56C"];
 const MDF = ["#D8BE8F", "#E7D3AC", "#BC9F6E"];
 const MDF_BASE = ["#C8A97E", "#D6BB93", "#A98B60"];
 
-// Planos de dibujo: en estos grupos se dibuja con (x, -z) o (y, -z) en mm
+// planos locales: (x, -z) o (y, -z) en mm
 const planoFrente = (y) => caraFrente(0, y, 0);
 const planoLado = (x) => caraLado(x, 0, 0);
 
@@ -30,7 +29,7 @@ function Prisma({ b, c, className, opacidad }) {
   );
 }
 
-// Viga inclinada vista de frente (cabios del techo)
+// cabios del techo
 function Viga({ a, b, ancho = 7 }) {
   const [x1, y1] = P(...a), [x2, y2] = P(...b);
   return (
@@ -41,7 +40,7 @@ function Viga({ a, b, ancho = 7 }) {
   );
 }
 
-// Fondo de la escena: superficie lisa con una luz suave bajo la maqueta, sin tramas
+// fondo liso con luz bajo la maqueta
 const Fondo = memo(function Fondo() {
   const [cx, cy] = P(235, 155, 0);
   return (
@@ -52,14 +51,14 @@ const Fondo = memo(function Fondo() {
   );
 });
 
-// Gotas de rocío en el acrílico del frente (posiciones fijas, aparecen con el aire húmedo)
+// rocío en el acrílico del frente (posiciones fijas)
 const ROCIO = Array.from({ length: 46 }, (_, i) => {
   const a = Math.sin(i * 12.9898) * 43758.5453;
   const b = Math.sin(i * 78.233) * 12345.6789;
   return { x: 20 + (a - Math.floor(a)) * 270, z: Z0 + 14 + (b - Math.floor(b)) * 190, r: 0.9 + ((i * 7) % 5) * 0.35, d: (i % 9) * 0.35 };
 });
 
-// Albahaca: el motor mueve cada hoja (resortes) y cambia su color con la humedad del suelo
+// hojas y color los actualiza el motor
 const Planta = memo(function Planta({ r }) {
   return (
     <g transform={planoFrente(150)} className="planta">
@@ -112,7 +111,7 @@ function SondaSuelo() {
 }
 
 function Ventilador({ r }) {
-  // En la pared izquierda (x = 5), centrado en y = 150 y a 165 mm de altura
+  // pared izquierda, centro en y=150, z=165
   const cy = -(Z0 + 165);
   return (
     <g transform={planoLado(6)}>
@@ -161,8 +160,7 @@ function Rocio({ visible }) {
   );
 }
 
-// Invernadero: estructura de balso, acrílico y todo lo que hay adentro
-// Tramo de manguera: tubo translúcido, agua que la llena y corriente que avanza
+// tubo + agua (dasharray) + flujo
 function Manguera({ i, r }) {
   const d = ruta(TRAMOS_MANGUERA[i]);
   return (
@@ -239,7 +237,7 @@ function Invernadero({ t, r, capas }) {
   );
 }
 
-// Tanque: el motor dibuja el agua (nivel y superficie con olas), el chorro al llenar y las burbujas
+// el agua, el chorro y las burbujas los dibuja el motor
 function Tanque({ r, capas }) {
   const vaso = prisma(TX0, TY0, Z0, TX1, TY1, Z0 + 100);
   return (
@@ -268,7 +266,7 @@ function Tanque({ r, capas }) {
   );
 }
 
-// Caja de la electrónica: paredes de MDF, interior visible con la tapa levantada
+// caja de electrónica
 function Caja({ t, filasLcd, tapaAbierta, capas, txRef }) {
   const sinAgua = t && t.agua === 0;
   const rojo = sinAgua ? "parpadeo" : t?.suelo === "BAJA" ? "on" : "off";
@@ -342,7 +340,7 @@ function Caja({ t, filasLcd, tapaAbierta, capas, txRef }) {
   );
 }
 
-// Luz de la habitación según la hora del invernadero
+// tinte según la hora
 function luz(hora) {
   if (!hora) return { color: "#0B1A2C", op: 0 };
   const [h, m] = hora.split(":").map(Number);
@@ -354,7 +352,7 @@ function luz(hora) {
 }
 
 export default function Escena({ t, cfg, modo, latido, envio, pagina, sel, setSel, foco, setFoco, tapaAbierta, reducir = false }) {
-  // Registro de los elementos que anima el motor (refs estables por nombre)
+  // refs por nombre para el motor
   const el = useRef({}).current;
   const r = useMemo(() => {
     const cache = {};
@@ -383,7 +381,7 @@ export default function Escena({ t, cfg, modo, latido, envio, pagina, sel, setSe
   useEffect(() => { if (reducir) motor.current?.asentar(t); }, [t, reducir]);
   useEffect(() => { if (latido) motor.current?.latido(); }, [latido]);
   useEffect(() => { if (envio) motor.current?.comando(); }, [envio]);
-  // LED TX del Arduino: destella con cada lectura
+  // LED TX
   useEffect(() => {
     const led = el.tx;
     if (!led || !latido) return;

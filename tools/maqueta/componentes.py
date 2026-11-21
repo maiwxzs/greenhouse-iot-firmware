@@ -21,9 +21,7 @@ def _ubicar(mallas, puntos, rot, mover):
     return mallas, {k: R @ np.asarray(p, float) + np.asarray(mover, float) for k, p in puntos.items()}
 
 
-# --------------------------------------------------------------------------
-#  Arduino Uno R3 (clon CH340G): 68.6 x 53.3 mm, separadores de 3 mm
-# --------------------------------------------------------------------------
+# Arduino Uno R3 (clon CH340G): 68.6 x 53.3 mm, separadores de 3 mm
 UNO_DIGITALES = {f"D{i}": 64.0 - 2.54 * i for i in range(8)}
 UNO_DIGITALES.update({"D8": 41.9, "D9": 39.4, "D10": 36.8, "D11": 34.3, "D12": 31.8, "D13": 29.2, "GND_D": 26.7})
 UNO_POTENCIA = {"IOREF": 29.2, "RESET": 31.8, "3V3": 34.3, "5V": 36.8, "GND": 39.4, "GND2": 41.9, "VIN": 44.5,
@@ -58,9 +56,7 @@ def arduino_uno(rot, mover, grupo="electronica"):
     return _ubicar([pcb, metal, negro, plata, led, soportes], puntos, rot, mover)
 
 
-# --------------------------------------------------------------------------
-#  Protoboard MB-102 (830 puntos): 165.1 x 54.6 x 8.5 mm
-# --------------------------------------------------------------------------
+# Protoboard MB-102 (830 puntos): 165.1 x 54.6 x 8.5 mm
 def protoboard(rot, mover, grupo="electronica"):
     cuerpo = Malla("Protoboard 830", "#F1EFE8", grupo=grupo).caja(0, 0, 0, 165.1, 54.6, 8.5)
     rojo = Malla("Protoboard (línea +)", "#D2463F", grupo=grupo)
@@ -80,9 +76,7 @@ def protoboard(rot, mover, grupo="electronica"):
     return _ubicar([cuerpo, rojo, azul, canal, agujeros], puntos, rot, mover)
 
 
-# --------------------------------------------------------------------------
-#  Módulo relé 1 canal 5 V con optoacoplador: 50 x 26 mm
-# --------------------------------------------------------------------------
+# Módulo relé 1 canal 5 V con optoacoplador: 50 x 26 mm
 def modulo_rele(rot, mover, nombre="Relé", grupo="electronica"):
     z = 3.0
     pcb = Malla(f"{nombre} (placa)", "#151816", grupo=grupo).caja(0, 0, z, 50, 26, z + 1.6)
@@ -106,10 +100,8 @@ def modulo_rele(rot, mover, nombre="Relé", grupo="electronica"):
     return _ubicar([pcb, azul, tornillos, negro, oro, led], puntos, rot, mover)
 
 
-# --------------------------------------------------------------------------
-#  Módulo de humedad HR202 con relé (50 x 27 mm). Se monta de canto en la pared.
-#  Construido de frente en el plano y-z, mirando hacia -x.
-# --------------------------------------------------------------------------
+# Módulo de humedad HR202 con relé (50 x 27 mm). Se monta de canto en la pared.
+# Construido de frente en el plano y-z, mirando hacia -x
 def modulo_humedad(x_pared, y0, z0, grupo="interior"):
     xp = x_pared - 6                                              # separadores de 6 mm
     pcb = Malla("Módulo HR202 (placa)", "#1E5FA0", grupo=grupo).caja(xp - 1.6, y0, z0, xp, y0 + 50, z0 + 27)
@@ -132,10 +124,8 @@ def modulo_humedad(x_pared, y0, z0, grupo="interior"):
     return [pcb, azul, sensor, negro, soportes] + leds, puntos
 
 
-# --------------------------------------------------------------------------
-#  Mini bomba sumergible 3-6 V: Ø24 x 45 mm, 33 mm de alto, salida Ø7.5
-#  (eje a lo largo de x, entrada en x = 0)
-# --------------------------------------------------------------------------
+# Mini bomba sumergible 3-6 V: Ø24 x 45 mm, 33 mm de alto, salida Ø7.5
+# (eje a lo largo de x, entrada en x = 0)
 def bomba(x0, y, z_fondo, grupo="tanque"):
     blanco = "#EEEAE0"
     zc = z_fondo + 3 + 12
@@ -149,9 +139,7 @@ def bomba(x0, y, z_fondo, grupo="tanque"):
     return [cuerpo, entrada], puntos
 
 
-# --------------------------------------------------------------------------
-#  Ventilador 40 x 40 x 10 mm (eje a lo largo de x, en el plano y-z)
-# --------------------------------------------------------------------------
+# Ventilador 40 x 40 x 10 mm (eje a lo largo de x, en el plano y-z)
 def ventilador(x_cara, yc, zc, grupo="interior"):
     marco = Malla("Ventilador 40x40 (marco)", "#222624", grupo=grupo)
     x0, x1 = x_cara - 10, x_cara
@@ -174,10 +162,8 @@ def ventilador(x_cara, yc, zc, grupo="interior"):
     return [marco, aspas, etiqueta], puntos
 
 
-# --------------------------------------------------------------------------
-#  LCD 16x2 con módulo I2C (80 x 36 mm), detrás de la ventana del frente
-#  Construido mirando hacia -y; (u, v) en mm desde la esquina del panel.
-# --------------------------------------------------------------------------
+# LCD 16x2 con módulo I2C (80 x 36 mm), detrás de la ventana del frente
+# Construido mirando hacia -y; (u, v) en mm desde la esquina del panel
 def lcd_i2c(x_panel, y_panel, z_panel, u_centro, v_centro, grupo="caja"):
     cx, cz = x_panel + u_centro, z_panel + v_centro
     bisel = Malla("LCD 16x2 (bisel)", "#151716", grupo=grupo).caja(cx - 35.6, y_panel - 0.5, cz - 12.1, cx + 35.6, y_panel + 6.5, cz + 12.1)
@@ -213,12 +199,10 @@ def pulsador(x, y_panel, z, grupo="caja"):
     return [cuerpo, tapa], {"pata": (x, y_panel + 10, z - 4)}
 
 
-# --------------------------------------------------------------------------
-#  Zumbador piezoeléctrico activo 3-24 V, carcasa rectangular de ABS negro:
-#  cuerpo 30 x 20 x 13 mm sobre una pestaña de 44 x 10 x 2 mm con dos orejas
-#  (agujeros a 38 mm), rejilla de cuatro ranuras arriba y cables de 90 mm.
-#  Se apoya plano sobre una superficie horizontal (rejilla hacia arriba).
-# --------------------------------------------------------------------------
+# Zumbador piezoeléctrico activo 3-24 V, carcasa rectangular de ABS negro:
+# cuerpo 30 x 20 x 13 mm sobre una pestaña de 44 x 10 x 2 mm con dos orejas
+# (agujeros a 38 mm), rejilla de cuatro ranuras arriba y cables de 90 mm
+# Se apoya plano sobre una superficie horizontal (rejilla hacia arriba)
 def zumbador(xc, yc, z_apoyo, grupo="tapa"):
     z = z_apoyo
     cuerpo = Malla("Zumbador (carcasa)", NEGRO, grupo=grupo)
@@ -245,9 +229,7 @@ def resistencia(a, b, nombre, bandas="#C9A646", grupo="electronica"):
     return [cuerpo, patas, banda]
 
 
-# --------------------------------------------------------------------------
-#  Sonda DS18B20 sumergible: punta de acero Ø6 x 50 mm
-# --------------------------------------------------------------------------
+# Sonda DS18B20 sumergible: punta de acero Ø6 x 50 mm
 def ds18b20(x, y, z_punta, grupo="interior"):
     acero = Malla("DS18B20 (punta de acero)", "#C9D1D6", grupo=grupo).cilindro((x, y, z_punta), (x, y, z_punta + 50), 3, 18)
     funda = Malla("DS18B20 (termorretráctil)", NEGRO, grupo=grupo).cilindro((x, y, z_punta + 50), (x, y, z_punta + 65), 3.3, 18)

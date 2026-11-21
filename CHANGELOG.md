@@ -2,6 +2,15 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versiones según [SemVer](https://semver.org/lang/es/).
 
+## [3.2.0] - 2026-11-20
+
+### Agregado
+- Tablero en tiempo real como pantalla principal de la aplicación: estado y alarma, medidores con zonas, mínimos, máximos y tendencia, humedad del aire, tanque, actuadores con su tiempo en el estado actual y cupo de la bomba, réplica de la LCD, últimos eventos y gráficas de 30 minutos.
+
+### Cambiado
+- La maqueta animada pasa a su propia sección; la sección de gráficas en vivo se integra al tablero.
+- Comentarios del código más cortos.
+
 ## [3.1.1] - 2026-11-15
 
 ### Corregido

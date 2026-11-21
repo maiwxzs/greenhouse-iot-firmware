@@ -1,10 +1,7 @@
-// Almacenamiento local (IndexedDB) del historial.
-//
-// El Arduino no guarda historial: toda la información se acumula aquí, en el disco
-// del computador, para no ocupar memoria ni en el Arduino ni en la aplicación.
-//   lecturas  cada telemetría (2 s), se conserva RETENCION_LECTURAS_DIAS
-//   minutos   un resumen por minuto, se conserva RETENCION_MINUTOS_DIAS
-//   eventos   cambios de estado, riegos, alarmas, conexiones y comandos
+// Historial en IndexedDB
+//   lecturas: cada tel (2 s)
+//   minutos:  resumen por minuto
+//   eventos:  estados, riegos, alarmas, conexión, comandos
 
 const VERSION_BD = 1;
 export const RETENCION_LECTURAS_DIAS = 2;
@@ -48,7 +45,7 @@ export class Almacen {
     try {
       this.bd = await promesa(req);
     } catch {
-      this.bd = null; // modo privado o almacenamiento bloqueado: la app sigue sin historial
+      this.bd = null; // sin almacenamiento: sigue sin historial
     }
     return this;
   }
@@ -103,7 +100,7 @@ export class Almacen {
     return promesa(this.bd.transaction(almacen, "readonly").objectStore(almacen).count());
   }
 
-  // Borra lo que superó su tiempo de retención
+  // retención
   async limpiar(ahora = Date.now()) {
     if (!this.bd) return;
     const tx = this.bd.transaction(["lecturas", "minutos", "eventos"], "readwrite");
@@ -124,7 +121,6 @@ export class Almacen {
     await finTransaccion(tx);
   }
 
-  // Uso del disco que el navegador asigna a la aplicación
   static async estimarUso() {
     if (!navigator.storage?.estimate) return null;
     const { usage, quota } = await navigator.storage.estimate();

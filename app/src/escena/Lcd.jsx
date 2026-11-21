@@ -1,5 +1,4 @@
-// Réplica de la pantalla LCD 16x2 (HD44780): matriz de puntos de 5x8 por carácter.
-// Muestra exactamente las dos páginas que escribe el firmware (GreenhouseCore.hpp, PantallaLCD).
+// LCD 16x2, fuente 5x8 (mismas páginas que PantallaLCD del firmware)
 const FUENTE = {
   " ": [0, 0, 0, 0, 0, 0, 0],
   "0": [14, 17, 19, 21, 25, 17, 14], "1": [4, 12, 4, 4, 4, 4, 14], "2": [14, 17, 1, 2, 4, 8, 31],
@@ -27,7 +26,7 @@ const ESTADO_LCD = {
 
 const ajustar = (s) => (s.length > 16 ? s.slice(0, 16) : s.padEnd(16, " "));
 
-// Texto de las dos filas, igual que el firmware. pagina: 0 lecturas, 1 estado
+// pagina: 0 lecturas, 1 estado
 export function textoLcd(t, pagina) {
   if (!t) return ["SIN CONEXION", "USB"].map(ajustar);
   if (pagina === 0) {
@@ -40,7 +39,7 @@ export function textoLcd(t, pagina) {
   return [estado, `V:${t.ventilador ? 1 : 0} B:${t.bomba ? 1 : 0}    ${h}:${m}`].map(ajustar);
 }
 
-// Puntos encendidos y apagados como dos trazados (uno por estado) para que sea liviano
+// un path para puntos encendidos y otro para apagados
 function trazados(filas) {
   let on = "", off = "";
   filas.forEach((fila, f) => {
@@ -59,7 +58,7 @@ function trazados(filas) {
   return { on, off };
 }
 
-// Dibujo de la pantalla en unidades de punto (96 x 17); ancho y alto dados por quien la usa
+// 96 x 17 unidades
 export function PuntosLcd({ filas, encendida = true }) {
   const { on, off } = trazados(filas);
   return (
@@ -70,7 +69,6 @@ export function PuntosLcd({ filas, encendida = true }) {
   );
 }
 
-// Pantalla grande para el panel lateral, con bisel y placa como el módulo real
 export default function Lcd({ filas, encendida = true, titulo }) {
   return (
     <svg className="lcd-grande" viewBox="-6 -5 107 27" role="img" aria-label={`${titulo}: ${filas.join(" / ")}`}>

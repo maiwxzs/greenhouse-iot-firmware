@@ -1,5 +1,4 @@
-// Protocolo serie del firmware 3.x (docs/protocolo-serie.md)
-// Cada línea es JSON ({"tipo": "tel" | "cfg" | "ok" | "error"}) o un mensaje que empieza por '#'.
+// Protocolo serie 3.x: JSON por línea o texto con '#' (docs/protocolo-serie.md)
 
 export function interpretarLinea(linea) {
   const texto = linea.trim();
@@ -9,13 +8,13 @@ export function interpretarLinea(linea) {
       const msg = JSON.parse(texto);
       if (msg && typeof msg.tipo === "string") return msg;
     } catch {
-      /* línea JSON incompleta: se trata como texto */
+      /* JSON incompleto */
     }
   }
   return { tipo: "texto", texto };
 }
 
-// Textos para las personas, por estado del firmware
+// textos por estado
 export const ESTADOS = {
   NORMAL: {
     titulo: "Todo en orden",
@@ -68,7 +67,6 @@ export function textoEstado(estado) {
   return ESTADOS[estado] || { titulo: estado || "—", detalle: "", tono: "neutro" };
 }
 
-// Respuestas "ok" en palabras
 export function textoConfirmacion(cmd) {
   return (
     {
@@ -81,7 +79,7 @@ export function textoConfirmacion(cmd) {
   );
 }
 
-// Comandos disponibles (la ayuda vive aquí para no ocupar memoria del Arduino)
+// ayuda de comandos (no se guarda en el Arduino)
 export const COMANDOS = [
   ["ESTADO", "Envía la configuración actual"],
   ["TEMP 30", "Temperatura para ventilar (°C)"],
@@ -106,5 +104,5 @@ export function comandoHoraActual(fecha = new Date()) {
   return `HORA ${dos(fecha.getHours())}:${dos(fecha.getMinutes())}:${dos(fecha.getSeconds())}`;
 }
 
-// Caudal nominal de la bomba (80–120 L/h): se usa el valor medio para estimar el agua
+// caudal medio de la bomba (80-120 L/h)
 export const CAUDAL_L_POR_S = 100 / 3600;

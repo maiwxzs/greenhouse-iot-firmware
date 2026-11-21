@@ -1,6 +1,6 @@
-// Construye la interfaz de la aplicación en app/dist; Electron la carga desde ahí.
-//   node build.mjs            compila una vez (minificado)
-//   node build.mjs --servir   compila, observa cambios y sirve en http://localhost:8000
+// Build de la interfaz en dist/
+//   node build.mjs            build minificado
+//   node build.mjs --servir   watch + servidor en :8000
 import * as esbuild from "esbuild";
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";

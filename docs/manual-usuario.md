@@ -63,9 +63,15 @@ Funciona en Windows 10 y 11 de 64 bits y no necesita internet. Si el Arduino es 
 
 **Demostración** inicia un Arduino simulado que habla el mismo protocolo. Corre a velocidad real o ×20, y una barra superior permite provocar calor, calor extremo, sequía, aire húmedo o tanque vacío, y rellenar el tanque, para ver cómo reacciona el control. Sus datos se guardan aparte de los reales.
 
+### Tablero
+
+La aplicación abre en el **Tablero**, pensado para dejarlo a la vista mientras el sistema trabaja. Arriba muestra el estado del invernadero, la hora, cuánto hace que llegó la última lectura y la conexión; si suena una alarma aparece una franja roja con su motivo y el botón para silenciarla. Debajo están los medidores de temperatura y humedad del suelo, con sus zonas (ventilar, alarma, riego), los mínimos y máximos de los últimos 30 minutos y la tendencia de los últimos 10, la humedad del aire y el tanque. La fila de actuadores dice si la bomba, el ventilador y la alarma están activos, por qué y desde hace cuánto, cuántos pulsos de riego van en el día y cuánto del cupo de 900 s por hora lleva la bomba. Al final están la réplica de la pantalla LCD, los últimos eventos y las gráficas de los últimos 30 minutos.
+
+![Tablero](img/aplicacion.png)
+
 ### La maqueta
 
-La sección **Invernadero** muestra la maqueta tal como está construida, animada con las lecturas: gira el ventilador, corre el agua, cambian la tierra y las hojas, baja el tanque, aparece rocío con el aire húmedo y el zumbador emite ondas con la alarma. Cada lectura que llega viaja como un punto amarillo por el cable USB; cada comando, como un punto celeste en sentido contrario.
+La sección **Maqueta** muestra la maqueta tal como está construida, animada con las lecturas: gira el ventilador, corre el agua, cambian la tierra y las hojas, baja el tanque, aparece rocío con el aire húmedo y el zumbador emite ondas con la alarma. Cada lectura que llega viaja como un punto amarillo por el cable USB; cada comando, como un punto celeste en sentido contrario.
 
 Las animaciones están activadas por defecto; el interruptor **Animaciones** del menú lateral las apaga si el equipo es muy lento o si prefieres una vista quieta.
 
@@ -79,8 +85,8 @@ A la derecha, el tablero muestra el estado, las cuatro lecturas con su traza de 
 
 | Sección | Contenido |
 |---|---|
-| Invernadero | Maqueta interactiva, lecturas, pantalla LCD, acciones y bitácora |
-| Gráficas | Temperatura y humedad del suelo de los últimos 30 min, y franjas de bomba, ventilador y aire húmedo |
+| Tablero | Pantalla principal en tiempo real: estado y alarma, medidores de temperatura y humedad del suelo con mínimos, máximos y tendencia de 10 min, humedad del aire, tanque y agua usada, bomba, ventilador, alarma y LEDs con su tiempo en el estado actual, cupo de la bomba en la hora, réplica de la LCD, últimos eventos y gráficas de 30 min |
+| Maqueta | Maqueta interactiva, lecturas, pantalla LCD, acciones y bitácora |
 | Historial | Hoy, 7 días o 30 días: estadísticas, gráficas por minuto y resumen diario. Exportación a CSV |
 | Eventos | Cambios de estado, riegos, ventilador, aire húmedo, alarmas, comandos y conexiones |
 | Ajustes | Umbrales de temperatura y suelo, y botón para poner en hora el reloj |

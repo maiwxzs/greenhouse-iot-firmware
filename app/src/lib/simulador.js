@@ -1,8 +1,7 @@
-// Simulador del Arduino para el modo demostración.
-// Emite las mismas líneas que el firmware 3.x y responde a los mismos comandos.
+// Arduino simulado (mismo protocolo que el firmware 3.x)
 import { CAUDAL_L_POR_S, dos } from "./protocolo.js";
 
-const CAPACIDAD_TANQUE_L = 1.0;   // recipiente de 12 × 8.5 × 10 cm
+const CAPACIDAD_TANQUE_L = 1.0;   // 12 x 8.5 x 10 cm
 
 const FABRICA = {
   temp_max: 30, temp_hist: 2, temp_crit: 35, suelo_min: 30, suelo_max: 85, hist: 5,
@@ -44,7 +43,7 @@ export class Simulador {
     this.paso();
   }
 
-  // Provoca una situación para ver cómo reacciona el control (solo en la demostración)
+  // solo demo
   provocar(tipo) {
     const m = this.m;
     if (tipo === "calor") m.temp = Math.max(m.temp, (this.cfg.temp_max ?? 30) + 2.5);
@@ -59,12 +58,12 @@ export class Simulador {
 
   paso() {
     const c = this.cfg, m = this.m;
-    const dt = 2 * this.velocidad;            // segundos simulados por paso
+    const dt = 2 * this.velocidad;            // s por paso
     this.ms += dt * 1000;
     const seg = Math.floor(this.reloj + this.ms / 1000) % 86400;
     const hora = seg / 3600;
 
-    // Clima: día más cálido, noche más fresca
+    // clima diario
     const ambiente = 24 + 7 * Math.sin(((hora - 9) / 24) * 2 * Math.PI);
     const bombaActiva = this.ms < m.bombaHasta;
     m.temp += ((ambiente - m.temp) * 0.004 + (m.vent ? -0.05 : 0.01)) * dt + (Math.random() - 0.5) * 0.06;
@@ -76,10 +75,10 @@ export class Simulador {
     m.hr = Math.min(98, Math.max(30, m.hr));
     m.suelo = Math.min(97, Math.max(4, m.suelo));
 
-    // Reglas (las mismas del firmware)
+    // mismas reglas del firmware
     if (!m.calor && m.temp > c.temp_max) m.calor = true;
     else if (m.calor && m.temp < c.temp_max - c.temp_hist) m.calor = false;
-    if (!m.aireAlta && m.hr > 82) m.aireAlta = true;          // umbral del potenciómetro del módulo
+    if (!m.aireAlta && m.hr > 82) m.aireAlta = true;          // umbral del potenciómetro
     else if (m.aireAlta && m.hr < 78) m.aireAlta = false;
     const clas = (v, est) => {
       if (est === "BAJA" && v < c.suelo_min + c.hist) return "BAJA";
@@ -114,7 +113,7 @@ export class Simulador {
       estado, aire: m.aireAlta ? "ALTA" : "NORMAL", suelo: m.sueloEstado,
       ventilador: m.vent ? 1 : 0, bomba: bomba ? 1 : 0, alarma,
       bomba_s_hora: Math.floor(m.bombaMsHora / 1000),
-      // Solo en la demostración: nivel real del tanque para animar el dibujo
+      // solo demo: nivel del tanque
       _tanque: Math.round((m.tanqueL / CAPACIDAD_TANQUE_L) * 100),
     }));
   }
@@ -172,7 +171,7 @@ export class Simulador {
   }
 }
 
-// Historial de ejemplo (3 días) para que la demostración muestre estadísticas
+// historial de ejemplo para la demo
 export function generarHistorialDemo(dias = 3, ahora = Date.now()) {
   const minutos = [], eventos = [];
   const inicio = Math.floor((ahora - dias * 86400000) / 60000) * 60000;
@@ -189,7 +188,7 @@ export function generarHistorialDemo(dias = 3, ahora = Date.now()) {
     if (suelo < 30 && regando === 0) { regando = 5; eventos.push({ t, tipo: "estado", texto: "Suelo seco: regando", tono: "agua" }); }
     if (regando > 0) { bomba = 2.5; suelo += 4.5; regando--; eventos.push({ t, tipo: "riego", texto: "Pulso de riego", tono: "agua" });
       if (regando === 0) eventos.push({ t, tipo: "estado", texto: "Todo en orden", tono: "ok" }); }
-    const aire = hora < 6 || hora >= 22.5;                      // rocío nocturno: el contacto del HR202 cierra
+    const aire = hora < 6 || hora >= 22.5;                      // rocío nocturno
     if (aire !== aireAntes) eventos.push({ t, tipo: "aire", texto: aire ? "Aire húmedo: contacto del HR202 cerrado" : "Humedad del aire normal", tono: aire ? "agua" : "neutro" });
     aireAntes = aire;
     const tN = 30, ruido = () => (Math.random() - 0.5) * 0.4;

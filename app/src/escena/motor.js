@@ -1,12 +1,5 @@
-// Motor de animación de la maqueta. Corre en un único requestAnimationFrame y modifica el SVG
-// directamente (sin re-renderizar React), con física simple e independiente de la tasa de cuadros:
-//   - agua del tanque: nivel con caudal limitado y superficie como cuerda vibrante (ecuación de onda)
-//   - riego: la manguera se llena desde la bomba, gotas con gravedad que rebotan en las hojas
-//     y salpican la tierra, que se oscurece donde cae el agua
-//   - planta: cada hoja es un resorte amortiguado; se marchita con el suelo seco, se recupera al
-//     regar, tiembla con el viento del ventilador y con las gotas que la golpean
-//   - ventilador con inercia y desenfoque de movimiento, aire que cruza la planta
-//   - ondas de calor, niebla con el aire húmedo, burbujas y chorro al llenar el tanque
+// Animación de la maqueta: un solo rAF, escribe el SVG directo (sin React)
+// agua: ecuación de onda 1D; hojas: resortes amortiguados; partículas en pools fijos
 import { interpolateRgb } from "d3-interpolate";
 import { P } from "./proyeccion.js";
 import {
@@ -15,7 +8,7 @@ import {
 
 const NS = "http://www.w3.org/2000/svg";
 const limitar = (v, a, b) => (v < a ? a : v > b ? b : v);
-// Suavizado exponencial independiente de los cuadros por segundo
+// suavizado exponencial, independiente de fps
 const suave = (actual, objetivo, tasa, dt) => actual + (objetivo - actual) * (1 - Math.exp(-tasa * dt));
 const azar = (a, b) => a + Math.random() * (b - a);
 const f2 = (n) => Math.round(n * 100) / 100;
@@ -25,11 +18,11 @@ const colorHoja = interpolateRgb("#3E9A5C", "#A9A048");
 const colorHojaOscura = interpolateRgb("#2C7446", "#8A8238");
 const colorTierra = interpolateRgb("#A98762", "#352010");
 
-const GRAVEDAD = 900;               // mm/s² (cámara lenta: con 9810 una gota cruzaría la escena en 0,15 s)
-const C2_ONDA = 1400;               // rigidez de la superficie del agua (nodos²/s²)
-const SUBPASO = 1 / 240;            // paso fijo de la física del agua
+const GRAVEDAD = 900;               // mm/s², más lenta que la real para que se vea
+const C2_ONDA = 1400;               // nodos²/s²
+const SUBPASO = 1 / 240;            // s
 
-// Conjunto fijo de elementos SVG reutilizables: no se crean ni destruyen nodos mientras corre
+// pool de nodos SVG reutilizables
 function pool(grupo, n, tipo, clase) {
   if (!grupo) return [];
   grupo.replaceChildren();
@@ -72,12 +65,12 @@ export class Motor {
       burbujas: pool(el.burbujas, 18, "circle"),
       pulsos: pool(el.pulsos, 8, "circle"),
     };
-    // Largo de cada tramo de manguera para llenarla de forma continua desde la bomba
+    // largo acumulado de cada tramo de manguera
     this.tramos = (el.mangueraLlena || []).map((p, i) => ({ lleno: p, flujo: el.mangueraFlujo?.[i], largo: p ? p.getTotalLength() : 0 }));
     let inicio = 0;
     this.tramos.forEach((tr) => { tr.inicio = inicio; inicio += tr.largo; });
     this.largoManguera = inicio;
-    // Cable USB como polilínea en pantalla
+    // cable USB en coordenadas de pantalla
     this.usb = USB.map((p) => P(...p));
     this.usbLargos = this.usb.slice(1).map((b, i) => Math.hypot(b[0] - this.usb[i][0], b[1] - this.usb[i][1]));
     this.usbTotal = this.usbLargos.reduce((a, b) => a + b, 0);
@@ -87,7 +80,7 @@ export class Motor {
   latido() { this.p.pulsos.push({ s: 0, dir: 1 }); }
   comando() { this.p.pulsos.push({ s: 0, dir: -1 }); }
 
-  // Lleva todo al estado de los datos sin animar (movimiento reducido)
+  // sin animación: salta al estado final
   asentar(d) {
     if (!this.listo) return;
     const s = this.s;
@@ -108,7 +101,7 @@ export class Motor {
 
   sequedad() {
     const seca = limitar((40 - (this.s.hs ?? 45)) / 35, 0, 1);
-    return limitar(seca - this.s.mojado * 0.35, 0, 1);   // el riego reciente la levanta enseguida
+    return limitar(seca - this.s.mojado * 0.35, 0, 1);   // recién regada se levanta
   }
 
   anguloHoja(i, seca) {
@@ -129,22 +122,21 @@ export class Motor {
     if (m.cuadros >= 120) { window.__motorMs = m.ms / m.cuadros; m.cuadros = 0; m.ms = 0; }
   }
 
-  // ------------------------------------------------------------------ física
   paso(dt, d) {
     const s = this.s, p = this.p, T = this.t;
 
-    // Lecturas suavizadas: la telemetría llega cada 2 s, la escena cambia de forma continua
+    // la tel llega cada 2 s; se suaviza
     s.hs = s.hs == null ? (d?.hum_suelo ?? 45) : suave(s.hs, d?.hum_suelo ?? s.hs, 0.9, dt);
     s.temp = s.temp == null ? (d?.temp_c ?? 24) : suave(s.temp, d?.temp_c ?? s.temp, 0.8, dt);
     s.aire = suave(s.aire, d?.aire_alta === 1 ? 1 : 0, 0.7, dt);
     s.mojado = Math.max(0, s.mojado - dt * 0.06);
 
-    // Ventilador: el motor tarda en acelerar y frena por rozamiento
+    // ventilador con inercia
     const v = s.vent;
     v.vel = suave(v.vel, d?.ventilador === 1 ? 1 : 0, d?.ventilador === 1 ? 1.3 : 0.55, dt);
     v.ang = (v.ang + v.vel * 1440 * dt) % 360;
 
-    // Bomba: caudal con arranque y parada suaves; la manguera se llena desde la bomba
+    // bomba: caudal y llenado de la manguera
     const b = s.bomba;
     const encendida = d?.bomba === 1;
     b.flujo = suave(b.flujo, encendida ? 1 : 0, encendida ? 3.5 : 2.2, dt);
@@ -153,7 +145,7 @@ export class Motor {
     b.fase += b.flujo * 95 * dt;
     const cebada = b.llenado >= this.largoManguera - 0.5;
 
-    // Gotas desde la boquilla
+    // gotas
     if (cebada && b.flujo > 0.15) {
       const tasa = 34 * b.flujo;
       let n = tasa * dt + (Math.random() < (tasa * dt) % 1 ? 1 : 0);
@@ -169,7 +161,7 @@ export class Motor {
     p.gotas = p.gotas.filter((g) => {
       const zAntes = g.z;
       g.vz -= GRAVEDAD * dt; g.x += g.vx * dt; g.y += g.vy * dt; g.z += g.vz * dt;
-      // ¿Golpea una hoja?
+      // choque con hoja
       if (!g.rebote) {
         for (const h of hojas) {
           const [xa, xb] = h.x0 < h.x1 ? [h.x0, h.x1] : [h.x1, h.x0];
@@ -178,14 +170,14 @@ export class Motor {
           const zh = h.z0 + (h.z1 - h.z0) * k;
           if (zAntes >= zh && g.z < zh && Math.random() < 0.6) {
             s.hojas[h.i].w += HOJAS[h.i].lado * azar(90, 170) * Math.min(1, -g.vz / 300);
-            // La gota se rompe y escurre por el borde de la hoja
+            // escurre por el borde
             g.rebote = true; g.z = zh; g.vz = azar(10, 50); g.vx = HOJAS[h.i].lado * azar(20, 60);
             this.salpicar(g.x, g.y, zh, 2, 0.6);
             break;
           }
         }
       }
-      // ¿Llega a la tierra?
+      // tierra
       if (g.z <= MACETA.zTierra) {
         const dx = g.x - MACETA.x, dy = g.y - MACETA.y;
         if (dx * dx + dy * dy <= MACETA.radioTierra ** 2) {
@@ -204,7 +196,7 @@ export class Motor {
     }).slice(-this.e.salpicas.length);
     p.ondas = p.ondas.filter((o) => (o.k += dt * 2.2) < 1).slice(-this.e.ondas.length);
 
-    // Planta: resortes amortiguados por hoja, viento del ventilador y balanceo del tallo
+    // hojas (resorte + viento) y tallo
     const seca = this.sequedad();
     s.hojas.forEach((h, i) => {
       const objetivo = this.anguloHoja(i, seca);
@@ -217,23 +209,23 @@ export class Motor {
     const inclinacion = -3 * v.vel + v.vel * 1.2 * Math.sin(T * 6.3);
     pl.w += (32 * (inclinacion - pl.th) - 5 * pl.w) * dt; pl.th += pl.w * dt;
 
-    // Aire: entra por la rejilla del fondo, rodea la planta y sale por el ventilador
+    // aire: rejilla -> planta -> ventilador
     if (v.vel > 0.12 && Math.random() < dt * 9 * v.vel) {
       p.aire.push({ k: 0, a: [azar(112, 188), 303, Z0 + azar(26, 54)], c: [azar(110, 230), azar(150, 250), Z0 + azar(110, 190)],
         fase: azar(0, 6.28), vel: azar(0.26, 0.38) });
     }
     p.aire = p.aire.filter((q) => (q.k += dt * q.vel * (0.5 + v.vel * 0.7)) < 1.5).slice(-this.e.aire.length);
 
-    // Ondas de calor que suben desde el piso del invernadero
+    // ondas de calor
     const calor = limitar((s.temp - 27) / 7, 0, 1);
     if (calor > 0.12 && Math.random() < dt * 2.2 * calor) p.calor.push({ x: azar(30, 280), y: azar(60, 260), z: Z0 + azar(10, 30), vida: 0 });
     p.calor = p.calor.filter((q) => { q.vida += dt / 3.2; q.z += 48 * dt; return q.vida < 1 && q.z < ALERO; }).slice(-this.e.calor.length);
 
-    // Niebla con el aire húmedo, arrastrada hacia el ventilador
+    // niebla
     if (s.aire > 0.1 && Math.random() < dt * 1.2 * s.aire) p.niebla.push({ x: azar(30, 280), y: azar(40, 280), z: Z0 + azar(40, 200), r: azar(10, 20), vida: 0 });
     p.niebla = p.niebla.filter((q) => { q.vida += dt / 6; q.x -= v.vel * 22 * dt; q.z += 3 * dt; return q.vida < 1; }).slice(-this.e.niebla.length);
 
-    // Tanque: nivel con caudal limitado y superficie con ecuación de onda
+    // tanque
     const ag = s.agua;
     const objetivo = this.nivelObjetivo(d);
     if (ag.nivel == null) ag.nivel = objetivo;
@@ -252,7 +244,7 @@ export class Motor {
     p.burbujas = p.burbujas.filter((q) => { q.z += (30 + q.r * 18) * dt; q.x += Math.sin(this.t * 9 + q.fase) * 6 * dt; return q.z < sup - 0.5; })
       .slice(-this.e.burbujas.length);
 
-    // Datos por el cable USB
+    // pulsos USB
     p.pulsos = p.pulsos.filter((q) => (q.s += dt * 0.9) < 1).slice(-this.e.pulsos.length);
   }
 
@@ -263,17 +255,17 @@ export class Motor {
     }
   }
 
-  // Superficie del agua: cuerda discreta con amortiguamiento, perturbada por el chorro y la bomba
+  // superficie: cuerda discreta amortiguada
   olas(dt, flujoBomba, chorro, vaciando) {
     const { h, v } = this.s.agua;
     const n = h.length;
     const nodo = (x) => Math.round(((x - TX0) / (TX1 - TX0)) * (n - 1));
     const jChorro = nodo(422), jBomba = nodo(355);
-    // Perturbaciones (en mm/s)
+    // perturbaciones (mm/s)
     if (chorro > 0.05) for (let k = -1; k <= 1; k++) v[jChorro + k] -= chorro * azar(300, 800) * dt;
     if (flujoBomba > 0.1) v[jBomba] += (Math.random() - 0.5) * 900 * flujoBomba * dt;
     if (vaciando > 0.05) v[n >> 1] += Math.sin(this.t * 4) * 120 * vaciando * dt;
-    v[(Math.random() * n) | 0] += (Math.random() - 0.5) * 18 * dt;        // agua viva, apenas
+    v[(Math.random() * n) | 0] += (Math.random() - 0.5) * 18 * dt;        // ruido
     this.s.agua.acum += dt;
     while (this.s.agua.acum >= SUBPASO) {
       this.s.agua.acum -= SUBPASO;
@@ -285,7 +277,6 @@ export class Motor {
     }
   }
 
-  // ----------------------------------------------------------------- dibujo
   dibujar(d) {
     const el = this.el, e = this.e, s = this.s, p = this.p;
 
@@ -294,7 +285,7 @@ export class Motor {
     el.aspas?.setAttribute("opacity", f2(1 - s.vent.vel * 0.55));
     el.desenfoque?.setAttribute("opacity", f2(s.vent.vel * 0.6));
 
-    // Manguera: parte llena y avance del agua
+    // manguera
     const b = s.bomba;
     for (const tr of this.tramos) {
       if (!tr.lleno) continue;
@@ -306,7 +297,7 @@ export class Motor {
       }
     }
 
-    // Gotas, alargadas según su velocidad
+    // gotas (se estiran con la velocidad)
     e.gotas.forEach((g, i) => {
       const q = p.gotas[i];
       if (!q) { g.setAttribute("opacity", "0"); return; }
@@ -331,7 +322,7 @@ export class Motor {
       o.setAttribute("opacity", f2((1 - q.k) * 0.7));
     });
 
-    // Tierra: se oscurece con la humedad y brilla donde acaba de caer agua
+    // tierra
     const tono = limitar((s.hs ?? 45) / 90 + s.mojado * 0.3, 0, 1);
     if (Math.abs(tono - s.ultTierra) > 0.004) {
       s.ultTierra = tono;
@@ -352,7 +343,7 @@ export class Motor {
     });
     el.planta?.setAttribute("transform", `rotate(${f2(s.planta.th)} 105 ${-(Z0 + 90)})`);
 
-    // Aire en movimiento: trazos curvos que se desvanecen
+    // aire
     const fan = VENTILADOR;
     const bez = (a, c, k) => a.map((_, i) => (1 - k) * (1 - k) * a[i] + 2 * (1 - k) * k * c[i] + k * k * fan[i]);
     const pos = (q, k) => {
@@ -386,7 +377,7 @@ export class Motor {
       c.setAttribute("opacity", f2(Math.sin(q.vida * Math.PI) * 0.07 * s.aire));
     });
 
-    // Agua del tanque
+    // agua
     const ag = s.agua;
     const zb = Z0 + 1.5, x0 = TX0 + 1.5, x1 = TX1 - 1.5, yf = TY0 + 1.5, yb = TY1 - 1.5;
     const visible = ag.nivel > 0.4;
@@ -407,7 +398,7 @@ export class Motor {
       el.aguaLado?.setAttribute("points", `${xy(P(x1, yf, zb))} ${xy(P(x1, yb, zb))} ${xy(P(x1, yb, zl - ag.h[n - 1] * 0.3))} ${xy(P(x1, yf, zl))}`);
       el.aguaBrillo?.setAttribute("points", pf.join(" "));
     }
-    // Chorro al llenar: cae desde arriba del tanque, más delgado al acelerar
+    // chorro de llenado
     if (el.chorro) {
       if (ag.chorro > 0.03) {
         const zTop = Z0 + 150, zSup = zb + ag.nivel;
@@ -426,14 +417,14 @@ export class Motor {
       c.setAttribute("opacity", "0.75");
     });
 
-    // La caja se vuelve translúcida mientras se llena el tanque o se mira el tanque
+    // caja translúcida al llenar o al seleccionar el tanque
     if (el.caja) {
       const transparente = ag.chorro > 0.05 || el.caja.getAttribute("data-transparente") === "1";
       s.cajaOp = suave(s.cajaOp ?? 1, transparente ? 0.28 : 1, 5, this.ultimoDt || 0.016);
       el.caja.setAttribute("opacity", f2(s.cajaOp));
     }
 
-    // Pulsos por el cable USB
+    // pulsos USB
     e.pulsos.forEach((c, i) => {
       const q = p.pulsos[i];
       if (!q) { c.setAttribute("opacity", "0"); return; }
