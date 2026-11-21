@@ -69,8 +69,8 @@ function crearVentana() {
     ventana.webContents.once("did-finish-load", async () => {
       await new Promise((r) => setTimeout(r, 2500));
       const ok = await ventana.webContents.executeJavaScript(
-        "!!document.querySelector('.app') && !!document.querySelector('.escena-svg [data-pieza=\"bomba\"]')");
-      console.log(ok ? "PRUEBA OK: interfaz y maqueta cargadas" : "PRUEBA FALLIDA: la interfaz no se dibujó");
+        "!!document.querySelector('.app') && !!document.querySelector('.tablero-vivo .medidor')");
+      console.log(ok ? "PRUEBA OK: interfaz y tablero cargados" : "PRUEBA FALLIDA: la interfaz no se dibujó");
       app.exit(ok ? 0 : 1);
     });
     return;
