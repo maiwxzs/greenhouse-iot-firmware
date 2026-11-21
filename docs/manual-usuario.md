@@ -73,7 +73,7 @@ La aplicación abre en el **Tablero**, pensado para dejarlo a la vista mientras 
 
 La sección **Maqueta** muestra la maqueta tal como está construida, animada con las lecturas: gira el ventilador, corre el agua, cambian la tierra y las hojas, baja el tanque, aparece rocío con el aire húmedo y el zumbador emite ondas con la alarma. Cada lectura que llega viaja como un punto amarillo por el cable USB; cada comando, como un punto celeste en sentido contrario.
 
-Las animaciones están activadas por defecto; el interruptor **Animaciones** del menú lateral las apaga si el equipo es muy lento o si prefieres una vista quieta.
+La aplicación también avisa con sonidos al conectarse, al regar, al encender el ventilador, con las alarmas y al volver a la normalidad; el interruptor **Sonidos** del menú lateral los apaga. Las animaciones están activadas por defecto; el interruptor **Animaciones** del menú lateral las apaga si el equipo es muy lento o si prefieres una vista quieta.
 
 Al tocar una pieza aparece su ficha: qué es, cómo está conectada, qué está haciendo y, cuando corresponde, un botón para actuar (regar, silenciar la alarma o rellenar el tanque en la demostración). Al tocar la caja se levanta la tapa y se ve el interior, con los LEDs de los relés y el LED TX del Arduino.
 

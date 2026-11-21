@@ -52,6 +52,22 @@ Cada pieza se puede tocar. Su ficha dice qué es, cómo está conectada y qué e
 
 ![Caja abierta con la electrónica visible](../docs/img/aplicacion-caja.png)
 
+## Sonidos
+
+`src/lib/sonido.js` sintetiza los sonidos con Web Audio, sin archivos de audio: campanas con parciales tipo celesta y reverberación corta, gotas con caída de tono para el riego y un soplo de ruido filtrado para el ventilador.
+
+| Evento | Sonido |
+|---|---|
+| Conexión o inicio de la demostración | Arpegio ascendente |
+| Pulso de riego | Tres gotas |
+| Ventilador encendido | Soplo con una campana grave |
+| Alarma | Dos campanas alternadas, repetidas cada 20 s mientras suena |
+| Alarma silenciada | Dos notas descendentes |
+| Vuelta a «Todo en orden» | Dos notas que resuelven |
+| Comando confirmado | Una campana aguda |
+
+El interruptor **Sonidos** del menú lateral los apaga; la elección se guarda en el equipo.
+
 ## Arquitectura
 
 ![Arquitectura de la aplicación](../docs/diagramas/aplicacion-arquitectura.png)

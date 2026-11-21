@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LuCalendarDays, LuGauge, LuFastForward, LuFlaskConical, LuGlassWater, LuHouse, LuInfo, LuListChecks,
-  LuPlay, LuPlugZap, LuSlidersHorizontal, LuSparkles, LuSquare, LuTerminal, LuUnplug,
+  LuPlay, LuPlugZap, LuSlidersHorizontal, LuSparkles, LuSquare, LuTerminal, LuUnplug, LuVolume2,
 } from "react-icons/lu";
 import Inicio from "./componentes/Inicio.jsx";
 import Tablero from "./componentes/Tablero.jsx";
@@ -16,6 +16,9 @@ import { Almacen, RETENCION_LECTURAS_DIAS, RETENCION_MINUTOS_DIAS } from "./lib/
 import { Registro, SEGUNDOS_POR_MUESTRA } from "./lib/registro.js";
 import { CAUDAL_L_POR_S, comandoHoraActual, interpretarLinea, textoConfirmacion } from "./lib/protocolo.js";
 import { generarHistorialDemo } from "./lib/simulador.js";
+import { activarSonido, sonar, sonidoDeEvento } from "./lib/sonido.js";
+
+const PRIORIDAD_SONIDO = ["alarma", "silencio", "riego", "normal", "ventilador", "conectado", "desconectado"];
 
 const VISTAS = [
   ["tablero", "Tablero", LuGauge], ["inicio", "Maqueta", LuHouse], ["historial", "Historial", LuCalendarDays],
@@ -43,6 +46,14 @@ export default function App() {
   const [vista, setVista] = useState("tablero");
   // preferencia guardada en localStorage
   const [animar, setAnimar] = useState(() => { try { return localStorage.getItem("invernadero.animaciones") !== "no"; } catch { return true; } });
+  const [sonidos, setSonidos] = useState(() => { try { return localStorage.getItem("invernadero.sonidos") !== "no"; } catch { return true; } });
+  const cambiarSonidos = () => setSonidos((a) => {
+    try { localStorage.setItem("invernadero.sonidos", a ? "no" : "si"); } catch { /* sin almacenamiento */ }
+    activarSonido(!a);
+    if (!a) sonar("conectado");
+    return !a;
+  });
+  useEffect(() => { activarSonido(sonidos); }, [sonidos]);
   const cambiarAnimar = () => setAnimar((a) => { try { localStorage.setItem("invernadero.animaciones", a ? "no" : "si"); } catch { /* sin almacenamiento */ } return !a; });
   const [cfg, setCfg] = useState(null);
   const [ultima, setUltima] = useState(null);
@@ -92,6 +103,8 @@ export default function App() {
         if (evs.length) {
           setEventos((e) => [...evs.slice().reverse(), ...e].slice(0, 300));
           setNuevos(new Set(evs));
+          const s = evs.map(sonidoDeEvento).filter(Boolean).sort((a, b) => PRIORIDAD_SONIDO.indexOf(a) - PRIORIDAD_SONIDO.indexOf(b))[0];
+          if (s) sonar(s);
         }
       });
       setEventos(await almacen.ultimosEventos(300));
@@ -130,7 +143,7 @@ export default function App() {
         return;
       }
       if (msg.tipo === "cfg") { setCfg(msg); alConsola(linea.trim(), "ok"); return; }
-      if (msg.tipo === "ok") { alConsola(linea.trim(), "ok"); avisar(textoConfirmacion(msg.cmd)); return; }
+      if (msg.tipo === "ok") { alConsola(linea.trim(), "ok"); avisar(textoConfirmacion(msg.cmd)); sonar("ok"); return; }
       if (msg.tipo === "error") {
         alConsola(linea.trim(), "error"); avisar(msg.msg, true);
         registro.current?.anotar("error", msg.msg, "alarma");
@@ -180,7 +193,15 @@ export default function App() {
     }
     setAlmacen(demo);
     setTimeout(() => conexion.iniciarDemo(), 50);
+    sonar("conectado");
   };
+
+  const alarmaActiva = ultima?.alarma === 1;
+  useEffect(() => {
+    if (!alarmaActiva) return undefined;
+    const id = setInterval(() => sonar("alarma"), 20000);
+    return () => clearInterval(id);
+  }, [alarmaActiva]);
 
   const activo = modo !== "desconectado";
   const t = ultima;
@@ -205,6 +226,9 @@ export default function App() {
             </li>
           ))}
         </ul>
+        <button type="button" className="interruptor" role="switch" aria-checked={sonidos} onClick={cambiarSonidos}>
+          <LuVolume2 /> Sonidos <i aria-hidden="true" />
+        </button>
         <button type="button" className="interruptor" role="switch" aria-checked={animar} onClick={cambiarAnimar}>
           <LuSparkles /> Animaciones <i aria-hidden="true" />
         </button>

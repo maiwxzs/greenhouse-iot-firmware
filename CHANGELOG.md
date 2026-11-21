@@ -2,6 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versiones según [SemVer](https://semver.org/lang/es/).
 
+## [3.3.0] - 2026-11-20
+
+### Agregado
+- Sonidos de la aplicación sintetizados con Web Audio (campanas con reverberación, gotas y soplo): conexión, riego, ventilador, alarma (se repite cada 20 s mientras suena), alarma silenciada, vuelta a la normalidad y comandos confirmados. Interruptor **Sonidos** en el menú lateral.
+
 ## [3.2.0] - 2026-11-20
 
 ### Agregado

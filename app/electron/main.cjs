@@ -97,6 +97,7 @@ if (!app.requestSingleInstanceLock()) {
   });
   app.setAppUserModelId("co.edu.unillanos.invernadero");
   Menu.setApplicationMenu(null);
+  app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
   app.whenReady().then(crearVentana);
   app.on("window-all-closed", () => app.quit());
 }
