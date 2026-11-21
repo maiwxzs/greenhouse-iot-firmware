@@ -2,6 +2,12 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versiones según [SemVer](https://semver.org/lang/es/).
 
+## [3.4.1] - 2026-11-20
+
+### Mejorado
+- Pantalla principal más fluida: los números y medidores que se deslizan ya no vuelven a dibujar la maqueta ni las gráficas, el motor de animación solo escribe los atributos que cambian y los brillos, la niebla y las sombras usan degradados en lugar de filtros de desenfoque. Las animaciones de pulso y alarma corren en la GPU.
+- La aplicación usa la GPU para dibujar aunque el controlador de video esté en la lista de bloqueo de Chromium.
+
 ## [3.4.0] - 2026-11-20
 
 ### Cambiado

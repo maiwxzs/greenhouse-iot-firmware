@@ -410,6 +410,10 @@ export default function Escena({ t, cfg, modo, latido, envio, pagina, sel, setSe
         <linearGradient id="acero" x1="0" x2="1"><stop offset="0" stopColor="#8E979C" /><stop offset=".5" stopColor="#E3E8EB" /><stop offset="1" stopColor="#8E979C" /></linearGradient>
         <radialGradient id="brillo-humedo"><stop offset="0" stopColor="#FFFFFF" stopOpacity=".55" /><stop offset="1" stopColor="#FFFFFF" stopOpacity="0" /></radialGradient>
         <radialGradient id="aire-caliente" cx=".45" cy=".65" r=".75"><stop offset="0" stopColor="#FF7A2E" stopOpacity=".8" /><stop offset=".6" stopColor="#FF9A4A" stopOpacity=".35" /><stop offset="1" stopColor="#FFB45E" stopOpacity=".08" /></radialGradient>
+        <radialGradient id="g-niebla"><stop offset="0" stopColor="#EAF6FF" stopOpacity="1" /><stop offset=".55" stopColor="#EAF6FF" stopOpacity=".6" /><stop offset="1" stopColor="#EAF6FF" stopOpacity="0" /></radialGradient>
+        <radialGradient id="g-lcd"><stop offset="0" stopColor="#B8F05A" stopOpacity=".7" /><stop offset=".55" stopColor="#B8F05A" stopOpacity="0.32" /><stop offset="1" stopColor="#B8F05A" stopOpacity="0" /></radialGradient>
+        <radialGradient id="g-rojo"><stop offset="0" stopColor="#FF4B3E" stopOpacity=".9" /><stop offset=".55" stopColor="#FF4B3E" stopOpacity="0.41" /><stop offset="1" stopColor="#FF4B3E" stopOpacity="0" /></radialGradient>
+        <radialGradient id="g-azul"><stop offset="0" stopColor="#4FA8FF" stopOpacity=".9" /><stop offset=".55" stopColor="#4FA8FF" stopOpacity="0.41" /><stop offset="1" stopColor="#4FA8FF" stopOpacity="0" /></radialGradient>
         <radialGradient id="luz-mesa"><stop offset="0" stopColor="#2A3D32" stopOpacity=".9" /><stop offset="1" stopColor="#2A3D32" stopOpacity="0" /></radialGradient>
         <pattern id="malla" width="3" height="3" patternUnits="userSpaceOnUse"><rect width="3" height="3" fill="#3D4A44" /><path d="M0 0h3M0 0v3" stroke="#7E8F86" strokeWidth=".6" /></pattern>
         <pattern id="agujeros" width="2.54" height="2.54" patternUnits="userSpaceOnUse"><circle cx="1.27" cy="1.27" r=".45" fill="#8E8A80" /></pattern>
@@ -436,9 +440,9 @@ export default function Escena({ t, cfg, modo, latido, envio, pagina, sel, setSe
       <rect x={VB.x} y={VB.y} width={VB.w} height={VB.h} className="luz" fill={l.color} style={{ opacity: l.op }} />
       {/* Brillos por encima de la luz ambiente: se notan más de noche */}
       <g className="brillos" transform={planoFrente(BY0)}>
-        {t && <rect x={BX0 + 18} y={-(Z0 + 56)} width="64" height="15" className="brillo-lcd" style={{ opacity: l.op * 1.4 }} />}
-        {t?.suelo === "BAJA" && t.agua === 1 && <circle cx={BX0 + 104} cy={-(Z0 + 56)} r="9" className="brillo rojo" />}
-        {t?.aire_alta === 1 && <circle cx={BX0 + 118} cy={-(Z0 + 56)} r="9" className="brillo azul" />}
+        {t && <rect x={BX0 + 10} y={-(Z0 + 60)} width="80" height="23" className="brillo-lcd" style={{ opacity: l.op * 1.4 }} />}
+        {t?.suelo === "BAJA" && t.agua === 1 && <circle cx={BX0 + 104} cy={-(Z0 + 56)} r="13" className="brillo rojo" />}
+        {t?.aire_alta === 1 && <circle cx={BX0 + 118} cy={-(Z0 + 56)} r="13" className="brillo azul" />}
       </g>
       {ancla && (
         <g className="ancla" pointerEvents="none">

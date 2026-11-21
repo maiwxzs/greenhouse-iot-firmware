@@ -98,6 +98,10 @@ if (!app.requestSingleInstanceLock()) {
   app.setAppUserModelId("co.edu.unillanos.invernadero");
   Menu.setApplicationMenu(null);
   app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+  // dibujo con la GPU aunque el controlador de video esté en la lista negra de Chromium
+  app.commandLine.appendSwitch("ignore-gpu-blocklist");
+  app.commandLine.appendSwitch("enable-gpu-rasterization");
+  app.commandLine.appendSwitch("enable-zero-copy");
   app.whenReady().then(crearVentana);
   app.on("window-all-closed", () => app.quit());
 }

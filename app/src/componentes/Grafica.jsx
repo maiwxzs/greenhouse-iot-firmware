@@ -80,7 +80,6 @@ export function GraficaTiempo({ datos, series, desde, hasta, dominio, banda, umb
         </g>
         {ultimo && series.map((s) => typeof ultimo[s.campo] === "number" && (
           <g key={s.campo}>
-            <circle cx={x(ultimo.t)} cy={y(ultimo[s.campo])} r="4" fill={s.color} className="punto-vivo" />
             <circle cx={x(ultimo.t)} cy={y(ultimo[s.campo])} r="4" fill={s.color} stroke="var(--panel)" strokeWidth="2" />
           </g>
         ))}
@@ -90,6 +89,10 @@ export function GraficaTiempo({ datos, series, desde, hasta, dominio, banda, umb
           <circle key={s.campo} cx={x(cursor.t)} cy={y(cursor[s.campo])} r="4.5" fill="var(--panel)" stroke={s.color} strokeWidth="2.2" className="punto-cursor" />
         ))}
       </svg>
+      {/* el pulso va fuera del SVG: así se anima en la GPU y no repinta la gráfica */}
+      {ultimo && series.map((s) => typeof ultimo[s.campo] === "number" && (
+        <span key={s.campo} className="punto-vivo" style={{ left: `${(x(ultimo.t) / ancho) * 100}%`, top: `${(y(ultimo[s.campo]) / alto) * 100}%`, background: s.color }} />
+      ))}
       {cursor && (
         <div className="tooltip" style={{ left: `${(x(cursor.t) / ancho) * 100}%`, top: 8 }}>
           <div>{formatoFecha(cursor.t)}</div>

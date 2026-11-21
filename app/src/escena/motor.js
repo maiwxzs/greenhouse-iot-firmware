@@ -12,6 +12,18 @@ const limitar = (v, a, b) => (v < a ? a : v > b ? b : v);
 const suave = (actual, objetivo, tasa, dt) => actual + (objetivo - actual) * (1 - Math.exp(-tasa * dt));
 const azar = (a, b) => a + Math.random() * (b - a);
 const f2 = (n) => Math.round(n * 100) / 100;
+
+// escribe el atributo solo si cambió: así el navegador no repinta lo que sigue igual
+const previos = new WeakMap();
+function fijar(el, nombre, valor) {
+  if (!el) return;
+  let m = previos.get(el);
+  if (!m) previos.set(el, (m = {}));
+  const v = String(valor);
+  if (m[nombre] === v) return;
+  m[nombre] = v;
+  el.setAttribute(nombre, v);
+}
 const xy = (p) => `${p[0]},${p[1]}`;
 
 const colorHoja = interpolateRgb("#3E9A5C", "#A9A048");
@@ -29,7 +41,7 @@ function pool(grupo, n, tipo, clase) {
   return Array.from({ length: n }, () => {
     const e = document.createElementNS(NS, tipo);
     if (clase) e.setAttribute("class", clase);
-    e.setAttribute("opacity", "0");
+    fijar(e, "opacity", "0");
     grupo.appendChild(e);
     return e;
   });
@@ -281,67 +293,67 @@ export class Motor {
     const el = this.el, e = this.e, s = this.s, p = this.p;
 
     // Ventilador
-    el.aspas?.setAttribute("transform", `rotate(${f2(s.vent.ang)} 150 ${-(Z0 + 165)})`);
-    el.aspas?.setAttribute("opacity", f2(1 - s.vent.vel * 0.55));
-    el.desenfoque?.setAttribute("opacity", f2(s.vent.vel * 0.6));
+    fijar(el.aspas, "transform", `rotate(${f2(s.vent.ang)} 150 ${-(Z0 + 165)})`);
+    fijar(el.aspas, "opacity", f2(1 - s.vent.vel * 0.55));
+    fijar(el.desenfoque, "opacity", f2(s.vent.vel * 0.6));
 
     // manguera
     const b = s.bomba;
     for (const tr of this.tramos) {
       if (!tr.lleno) continue;
       const lleno = limitar(b.llenado - tr.inicio, 0, tr.largo);
-      tr.lleno.setAttribute("stroke-dasharray", `${f2(lleno)} ${f2(tr.largo + 1)}`);
+      fijar(tr.lleno, "stroke-dasharray", `${f2(lleno)} ${f2(tr.largo + 1)}`);
       if (tr.flujo) {
-        tr.flujo.setAttribute("stroke-dashoffset", f2(tr.inicio - b.fase));
-        tr.flujo.setAttribute("opacity", f2(lleno >= tr.largo - 0.5 ? b.flujo : 0));
+        fijar(tr.flujo, "stroke-dashoffset", f2(tr.inicio - b.fase));
+        fijar(tr.flujo, "opacity", f2(lleno >= tr.largo - 0.5 ? b.flujo : 0));
       }
     }
 
     // gotas (se estiran con la velocidad)
     e.gotas.forEach((g, i) => {
       const q = p.gotas[i];
-      if (!q) { g.setAttribute("opacity", "0"); return; }
+      if (!q) { fijar(g, "opacity", "0"); return; }
       const [x, y] = P(q.x, q.y, q.z);
       const estira = limitar(-q.vz / 260, 1, 2.6);
-      g.setAttribute("cx", f2(x)); g.setAttribute("cy", f2(y));
-      g.setAttribute("rx", "1.25"); g.setAttribute("ry", f2(1.25 * estira));
-      g.setAttribute("opacity", "0.9");
+      fijar(g, "cx", f2(x)); fijar(g, "cy", f2(y));
+      fijar(g, "rx", "1.25"); fijar(g, "ry", f2(1.25 * estira));
+      fijar(g, "opacity", "0.9");
     });
     e.salpicas.forEach((c, i) => {
       const q = p.salpicas[i];
-      if (!q) { c.setAttribute("opacity", "0"); return; }
+      if (!q) { fijar(c, "opacity", "0"); return; }
       const [x, y] = P(q.x, q.y, q.z);
-      c.setAttribute("cx", f2(x)); c.setAttribute("cy", f2(y)); c.setAttribute("r", f2(q.r));
-      c.setAttribute("opacity", f2(limitar(q.vida * 3, 0, 0.9)));
+      fijar(c, "cx", f2(x)); fijar(c, "cy", f2(y)); fijar(c, "r", f2(q.r));
+      fijar(c, "opacity", f2(limitar(q.vida * 3, 0, 0.9)));
     });
     e.ondas.forEach((o, i) => {
       const q = p.ondas[i];
-      if (!q) { o.setAttribute("opacity", "0"); return; }
-      o.setAttribute("cx", f2(q.x)); o.setAttribute("cy", f2(-q.y));
-      o.setAttribute("rx", f2(2 + q.k * 9)); o.setAttribute("ry", f2(2 + q.k * 9));
-      o.setAttribute("opacity", f2((1 - q.k) * 0.7));
+      if (!q) { fijar(o, "opacity", "0"); return; }
+      fijar(o, "cx", f2(q.x)); fijar(o, "cy", f2(-q.y));
+      fijar(o, "rx", f2(2 + q.k * 9)); fijar(o, "ry", f2(2 + q.k * 9));
+      fijar(o, "opacity", f2((1 - q.k) * 0.7));
     });
 
     // tierra
     const tono = limitar((s.hs ?? 45) / 90 + s.mojado * 0.3, 0, 1);
     if (Math.abs(tono - s.ultTierra) > 0.004) {
       s.ultTierra = tono;
-      el.tierra?.setAttribute("fill", colorTierra(tono));
+      fijar(el.tierra, "fill", colorTierra(tono));
     }
-    el.brilloTierra?.setAttribute("opacity", f2(Math.max(limitar(((s.hs ?? 45) - 75) / 20, 0, 0.7), s.mojado * 0.65)));
+    fijar(el.brilloTierra, "opacity", f2(Math.max(limitar(((s.hs ?? 45) - 75) / 20, 0, 0.7), s.mojado * 0.65)));
 
     // Planta
     const seca = this.sequedad();
     if (Math.abs(seca - s.ultSeca) > 0.004) {
       s.ultSeca = seca;
       const c1 = colorHoja(seca * 0.8), c2 = colorHojaOscura(seca * 0.8);
-      el.hojasForma?.forEach((f, i) => f?.setAttribute("fill", i % 2 ? c1 : c2));
+      el.hojasForma?.forEach((f, i) => fijar(f, "fill", i % 2 ? c1 : c2));
     }
     el.hojas?.forEach((g, i) => {
       const h = HOJAS[i];
-      g?.setAttribute("transform", `translate(${h.x} ${-(Z0 + h.z)}) rotate(${f2(s.hojas[i].th ?? 0)})`);
+      fijar(g, "transform", `translate(${h.x} ${-(Z0 + h.z)}) rotate(${f2(s.hojas[i].th ?? 0)})`);
     });
-    el.planta?.setAttribute("transform", `rotate(${f2(s.planta.th)} 105 ${-(Z0 + 90)})`);
+    fijar(el.planta, "transform", `rotate(${f2(s.planta.th)} 105 ${-(Z0 + 90)})`);
 
     // aire
     const fan = VENTILADOR;
@@ -353,35 +365,35 @@ export class Motor {
     };
     e.aire.forEach((linea, i) => {
       const q = p.aire[i];
-      if (!q) { linea.setAttribute("opacity", "0"); return; }
+      if (!q) { fijar(linea, "opacity", "0"); return; }
       const a = pos(q, Math.max(0, q.k - 0.16)), m = pos(q, Math.max(0, q.k - 0.08)), c = pos(q, q.k);
-      linea.setAttribute("d", `M${xy(a)} Q${xy(m)} ${xy(c)}`);
-      linea.setAttribute("opacity", f2(Math.min(1, q.k * 3, (1.5 - q.k) * 2) * 0.42 * s.vent.vel));
+      fijar(linea, "d", `M${xy(a)} Q${xy(m)} ${xy(c)}`);
+      fijar(linea, "opacity", f2(Math.min(1, q.k * 3, (1.5 - q.k) * 2) * 0.42 * s.vent.vel));
     });
 
     // Calor y niebla
     const calor = limitar(((s.temp ?? 24) - 27) / 7, 0, 0.85);
-    el.velo?.setAttribute("opacity", f2(calor));
+    fijar(el.velo, "opacity", f2(calor));
     e.calor.forEach((onda, i) => {
       const q = p.calor[i];
-      if (!q) { onda.setAttribute("opacity", "0"); return; }
+      if (!q) { fijar(onda, "opacity", "0"); return; }
       const [x, y] = P(q.x, q.y, q.z);
-      onda.setAttribute("d", `M${f2(x)} ${f2(y)} q3 -4 0 -8 t0 -8 t0 -8`);
-      onda.setAttribute("opacity", f2(Math.sin(q.vida * Math.PI) * calor * 0.4));
+      fijar(onda, "d", `M${f2(x)} ${f2(y)} q3 -4 0 -8 t0 -8 t0 -8`);
+      fijar(onda, "opacity", f2(Math.sin(q.vida * Math.PI) * calor * 0.4));
     });
     e.niebla.forEach((c, i) => {
       const q = p.niebla[i];
-      if (!q) { c.setAttribute("opacity", "0"); return; }
+      if (!q) { fijar(c, "opacity", "0"); return; }
       const [x, y] = P(q.x, q.y, q.z);
-      c.setAttribute("cx", f2(x)); c.setAttribute("cy", f2(y)); c.setAttribute("r", f2(q.r * (0.7 + q.vida * 0.6)));
-      c.setAttribute("opacity", f2(Math.sin(q.vida * Math.PI) * 0.07 * s.aire));
+      fijar(c, "cx", f2(x)); fijar(c, "cy", f2(y)); fijar(c, "r", f2(q.r * (1.05 + q.vida * 0.9)));
+      fijar(c, "opacity", f2(Math.sin(q.vida * Math.PI) * 0.07 * s.aire));
     });
 
     // agua
     const ag = s.agua;
     const zb = Z0 + 1.5, x0 = TX0 + 1.5, x1 = TX1 - 1.5, yf = TY0 + 1.5, yb = TY1 - 1.5;
     const visible = ag.nivel > 0.4;
-    for (const k of ["aguaFrente", "aguaArriba", "aguaLado", "aguaBrillo"]) el[k]?.setAttribute("opacity", visible ? "1" : "0");
+    for (const k of ["aguaFrente", "aguaArriba", "aguaLado", "aguaBrillo"]) fijar(el[k], "opacity", visible ? "1" : "0");
     if (visible) {
       const n = ag.h.length;
       const frente = [], fondo = [];
@@ -392,11 +404,11 @@ export class Motor {
         fondo.push(P(x, yb, zb + ag.nivel + ag.h[i] * 0.7));
       }
       const pf = frente.map(xy), pb = fondo.map(xy);
-      el.aguaFrente?.setAttribute("points", `${xy(P(x0, yf, zb))} ${xy(P(x1, yf, zb))} ${pf.slice().reverse().join(" ")}`);
-      el.aguaArriba?.setAttribute("points", `${pf.join(" ")} ${pb.slice().reverse().join(" ")}`);
+      fijar(el.aguaFrente, "points", `${xy(P(x0, yf, zb))} ${xy(P(x1, yf, zb))} ${pf.slice().reverse().join(" ")}`);
+      fijar(el.aguaArriba, "points", `${pf.join(" ")} ${pb.slice().reverse().join(" ")}`);
       const zl = zb + ag.nivel + ag.h[n - 1];
-      el.aguaLado?.setAttribute("points", `${xy(P(x1, yf, zb))} ${xy(P(x1, yb, zb))} ${xy(P(x1, yb, zl - ag.h[n - 1] * 0.3))} ${xy(P(x1, yf, zl))}`);
-      el.aguaBrillo?.setAttribute("points", pf.join(" "));
+      fijar(el.aguaLado, "points", `${xy(P(x1, yf, zb))} ${xy(P(x1, yb, zb))} ${xy(P(x1, yb, zl - ag.h[n - 1] * 0.3))} ${xy(P(x1, yf, zl))}`);
+      fijar(el.aguaBrillo, "points", pf.join(" "));
     }
     // chorro de llenado
     if (el.chorro) {
@@ -404,34 +416,34 @@ export class Motor {
         const zTop = Z0 + 150, zSup = zb + ag.nivel;
         const [ax, ay] = P(422, TY0 + 20, zTop), [bx, by] = P(422, TY0 + 20, zSup);
         const w = 2.8 * ag.chorro, bamboleo = Math.sin(this.t * 13) * 0.6;
-        el.chorro.setAttribute("d", `M${f2(ax - w)} ${f2(ay)} C${f2(ax - w * 0.6 + bamboleo)} ${f2((ay + by) / 2)} ${f2(bx - w * 0.45)} ${f2(by - 6)} ${f2(bx - w * 0.5)} ${f2(by)}
+        fijar(el.chorro, "d", `M${f2(ax - w)} ${f2(ay)} C${f2(ax - w * 0.6 + bamboleo)} ${f2((ay + by) / 2)} ${f2(bx - w * 0.45)} ${f2(by - 6)} ${f2(bx - w * 0.5)} ${f2(by)}
           L${f2(bx + w * 0.5)} ${f2(by)} C${f2(bx + w * 0.45)} ${f2(by - 6)} ${f2(ax + w * 0.6 + bamboleo)} ${f2((ay + by) / 2)} ${f2(ax + w)} ${f2(ay)} Z`);
-        el.chorro.setAttribute("opacity", f2(Math.min(1, ag.chorro * 1.4)));
-      } else el.chorro.setAttribute("opacity", "0");
+        fijar(el.chorro, "opacity", f2(Math.min(1, ag.chorro * 1.4)));
+      } else fijar(el.chorro, "opacity", "0");
     }
     e.burbujas.forEach((c, i) => {
       const q = p.burbujas[i];
-      if (!q) { c.setAttribute("opacity", "0"); return; }
+      if (!q) { fijar(c, "opacity", "0"); return; }
       const [x, y] = P(q.x, q.y, q.z);
-      c.setAttribute("cx", f2(x)); c.setAttribute("cy", f2(y)); c.setAttribute("r", f2(q.r));
-      c.setAttribute("opacity", "0.75");
+      fijar(c, "cx", f2(x)); fijar(c, "cy", f2(y)); fijar(c, "r", f2(q.r));
+      fijar(c, "opacity", "0.75");
     });
 
     // caja translúcida al llenar o al seleccionar el tanque
     if (el.caja) {
       const transparente = ag.chorro > 0.05 || el.caja.getAttribute("data-transparente") === "1";
       s.cajaOp = suave(s.cajaOp ?? 1, transparente ? 0.28 : 1, 5, this.ultimoDt || 0.016);
-      el.caja.setAttribute("opacity", f2(s.cajaOp));
+      fijar(el.caja, "opacity", f2(s.cajaOp));
     }
 
     // pulsos USB
     e.pulsos.forEach((c, i) => {
       const q = p.pulsos[i];
-      if (!q) { c.setAttribute("opacity", "0"); return; }
+      if (!q) { fijar(c, "opacity", "0"); return; }
       const [x, y] = this.enCable(q.dir > 0 ? q.s : 1 - q.s);
-      c.setAttribute("cx", f2(x)); c.setAttribute("cy", f2(y)); c.setAttribute("r", "2.6");
-      c.setAttribute("class", q.dir > 0 ? "pulso" : "pulso comando");
-      c.setAttribute("opacity", f2(Math.min(1, q.s * 8, (1 - q.s) * 8)));
+      fijar(c, "cx", f2(x)); fijar(c, "cy", f2(y)); fijar(c, "r", "2.6");
+      fijar(c, "class", q.dir > 0 ? "pulso" : "pulso comando");
+      fijar(c, "opacity", f2(Math.min(1, q.s * 8, (1 - q.s) * 8)));
     });
   }
 

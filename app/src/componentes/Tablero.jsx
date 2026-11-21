@@ -1,13 +1,33 @@
 // Tablero en tiempo real
-import { useMemo } from "react";
+import { memo, useCallback, useMemo, useRef } from "react";
 import {
   LuBellOff, LuBellRing, LuDroplets, LuFan, LuGlassWater, LuPlay, LuPlugZap, LuThermometer, LuWaves, LuWind,
 } from "react-icons/lu";
-import { GraficaTiempo, TiraActuadores } from "./Grafica.jsx";
-import Maqueta from "./Maqueta.jsx";
+import { GraficaTiempo as GraficaBase, TiraActuadores as TiraBase } from "./Grafica.jsx";
+import MaquetaBase from "./Maqueta.jsx";
 import Lcd, { textoLcd } from "../escena/Lcd.jsx";
 import { textoEstado } from "../lib/protocolo.js";
 import { duracion, useAhora, useSuave } from "../lib/tiempo.js";
+
+// props de datos planos: se comparan por contenido para no repintar en cada segundo
+const chico = (x) => x && typeof x === "object" && !(Array.isArray(x) && x.length > 20);
+const mismas = (a, b) => {
+  for (const k in { ...a, ...b }) {
+    if (a[k] === b[k]) continue;
+    if (chico(a[k]) && chico(b[k]) && JSON.stringify(a[k]) === JSON.stringify(b[k])) continue;
+    return false;
+  }
+  return true;
+};
+const GraficaTiempo = memo(GraficaBase, mismas);
+const TiraActuadores = memo(TiraBase, mismas);
+const Maqueta = memo(MaquetaBase);
+
+// número que se desliza al nuevo valor; solo se vuelve a renderizar él
+function Numero({ valor, dec }) {
+  const v = useSuave(typeof valor === "number" ? valor : null);
+  return <span className="num">{typeof v === "number" ? v.toFixed(dec) : "--"}</span>;
+}
 
 const CUPO_BOMBA_S = 900;
 const VENTANA_MS = 30 * 60 * 1000;
@@ -23,7 +43,7 @@ function arco(k0, k1, r = R) {
   return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${grande} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 
-function Medidor({ valor, min, max, zonas, color, marcas = [] }) {
+const Medidor = memo(function Medidor({ valor, min, max, zonas, color, marcas = [] }) {
   const v = useSuave(typeof valor === "number" ? valor : null, 900);
   const k = typeof v === "number" ? Math.max(0, Math.min(1, (v - min) / (max - min))) : 0;
   const kk = (x) => (x - min) / (max - min);
@@ -32,6 +52,7 @@ function Medidor({ valor, min, max, zonas, color, marcas = [] }) {
     <svg className="medidor" viewBox="0 0 200 168" aria-hidden="true">
       <path d={arco(0, 1)} className="medidor-pista" />
       {zonas.map((z, i) => <path key={i} d={arco(kk(z.desde), kk(z.hasta), R + 11)} stroke={z.color} className="medidor-zona" />)}
+      {typeof v === "number" && <path d={arco(0, Math.max(k, 0.001))} stroke={color} className="medidor-halo" />}
       {typeof v === "number" && <path d={arco(0, Math.max(k, 0.001))} stroke={color} className="medidor-valor" />}
       {marcas.map((m) => {
         const [a, b] = punto(kk(m), R - 12), [c, d] = punto(kk(m), R + 16);
@@ -42,7 +63,7 @@ function Medidor({ valor, min, max, zonas, color, marcas = [] }) {
       <text x={punto(1, R)[0]} y={punto(1, R)[1] + 22} className="medidor-escala" textAnchor="middle">{max}</text>
     </svg>
   );
-}
+}, mismas);
 
 // estadísticas de la ventana en memoria
 function resumen(vivo, campo) {
@@ -117,8 +138,11 @@ export default function Tablero({ t, cfg, vivo, eventos, modo, pagina, enviar, a
   const cambioBomba = desdeCambio(vivo, "bomba"), cambioVent = desdeCambio(vivo, "ventilador"), cambioAire = desdeCambio(vivo, "aire_alta");
   const tempColor = !t || typeof t.temp_c !== "number" ? "#7E9086" : t.temp_c >= tCrit ? COL.alarma : t.temp_c > tMax ? COL.ventilar : COL.calor;
   const sueloColor = !t || typeof t.hum_suelo !== "number" ? "#7E9086" : t.hum_suelo < sMin ? COL.ventilar : t.hum_suelo > sMax ? COL.agua : COL.suelo;
-  const tempV = useSuave(typeof t?.temp_c === "number" ? t.temp_c : null);
-  const sueloV = useSuave(typeof t?.hum_suelo === "number" ? t.hum_suelo : null);
+  // la maqueta recibe funciones estables para no redibujarse con cada render del tablero
+  const ultimo = useRef(null);
+  ultimo.current = { enviar, acciones };
+  const enviarFijo = useCallback((...a) => ultimo.current.enviar(...a), []);
+  const accionesFijas = useMemo(() => ({ rellenar: () => ultimo.current.acciones.rellenar() }), []);
   const razonVent = !t ? "" : t.ventilador
     ? [t.estado?.startsWith("TEMPERATURA") && "calor", t.aire_alta && "aire húmedo", t.estado === "FALLA_SENSOR_TEMP" && "seguridad"].filter(Boolean).join(" y ") || "control"
     : (t.estado?.startsWith("TEMPERATURA") || t.aire_alta) && t.bomba ? "en pausa mientras riega" : "";
@@ -156,13 +180,13 @@ export default function Tablero({ t, cfg, vivo, eventos, modo, pagina, enviar, a
 
       <div className="tv-principal">
       <Maqueta t={t} cfg={cfg} modo={modo} latido={latido} envio={envio} pagina={pagina}
-        sel={sel} setSel={setSel} foco={foco} setFoco={setFoco} enviar={enviar} acciones={acciones} />
+        sel={sel} setSel={setSel} foco={foco} setFoco={setFoco} enviar={enviarFijo} acciones={accionesFijas} />
       <div className="tv-medidores">
         <Panel titulo="Temperatura del aire" icono={LuThermometer} tono={t && t.temp_c >= tCrit ? "alarma" : undefined}>
           <div className="medida">
             <Medidor valor={t?.temp_c} min={0} max={50} color={tempColor} marcas={[tMax, tCrit]}
               zonas={[{ desde: tMax, hasta: tCrit, color: COL.ventilar }, { desde: tCrit, hasta: 50, color: COL.alarma }]} />
-            <div className="medida-valor"><span className="num">{typeof tempV === "number" ? tempV.toFixed(1) : "--"}</span><small>°C</small></div>
+            <div className="medida-valor"><Numero valor={t?.temp_c} dec={1} /><small>°C</small></div>
           </div>
           <Tendencia delta={rT?.delta} unidad=" °C" />
           <dl className="mini">
@@ -177,7 +201,7 @@ export default function Tablero({ t, cfg, vivo, eventos, modo, pagina, enviar, a
           <div className="medida">
             <Medidor valor={t?.hum_suelo} min={0} max={100} color={sueloColor} marcas={[sMin, sMax]}
               zonas={[{ desde: 0, hasta: sMin, color: COL.ventilar }, { desde: sMin, hasta: sMax, color: COL.suelo }, { desde: sMax, hasta: 100, color: COL.agua }]} />
-            <div className="medida-valor"><span className="num">{typeof sueloV === "number" ? Math.round(sueloV) : "--"}</span><small>%</small></div>
+            <div className="medida-valor"><Numero valor={t?.hum_suelo} dec={0} /><small>%</small></div>
           </div>
           <Tendencia delta={rS?.delta} unidad=" %" decimales={0} />
           <dl className="mini">
