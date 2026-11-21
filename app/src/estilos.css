@@ -73,8 +73,7 @@ h1, h2, h3 { font-family: var(--datos); font-weight: 600; letter-spacing: .005em
 .secciones button[aria-current="page"] { background: rgba(226, 196, 142, .12); color: var(--en-tapete); font-weight: 600; }
 .secciones button[aria-current="page"]::before { content: ""; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px;
   border-radius: 0 3px 3px 0; background: var(--balso); }
-.interruptor:first-of-type { margin-top: auto; }
-.conexion { display: grid; gap: 8px; padding: 12px 8px 4px; border-top: 1px solid rgba(255, 255, 255, .08); }
+.conexion { margin-top: auto; display: grid; gap: 8px; padding: 12px 8px 4px; border-top: 1px solid rgba(255, 255, 255, .08); }
 .conexion-estado { margin: 0 0 2px; display: flex; align-items: center; gap: 8px; font-size: .86rem; color: var(--en-tapete-2); }
 .conexion-estado i { width: 8px; height: 8px; border-radius: 50%; background: var(--en-tapete-3); }
 .conexion[data-modo="usb"] .conexion-estado i { background: var(--hoja); animation: latido 2s infinite; }
@@ -104,7 +103,7 @@ h1, h2, h3 { font-family: var(--datos); font-weight: 600; letter-spacing: .005em
 .banda-demo .separador { width: 1px; height: 20px; background: var(--linea-fuerte); }
 .aviso { display: flex; gap: 10px; align-items: center; background: rgba(226, 196, 142, .14); border-radius: var(--radio); padding: 8px 12px; margin: 0 0 12px; font-size: .9rem; }
 
-/* ------------------------------------ Inicio ----------------------------------- */
+/* ------------------------------------ Maqueta ---------------------------------- */
 .inicio { display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto 1fr; gap: 16px 20px; align-items: start; }
 .tablero { grid-column: 2; grid-row: 1 / span 2; }
 .escena-marco { position: relative; width: 100%; border-radius: var(--radio); overflow: hidden; border: 1px solid var(--linea); background: var(--escena); }
@@ -438,7 +437,9 @@ legend svg { width: 16px; height: 16px; color: var(--tinta-2); }
 @keyframes alarma-fondo { 50% { background: rgba(242, 86, 75, .24); } }
 .tv-inicio { display: flex; gap: 10px; }
 
-.tv-medidores { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.tv-principal { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 14px; align-items: stretch; }
+.tv-principal .escena-marco { align-self: start; }
+.tv-medidores { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-content: start; }
 .medida { position: relative; }
 .medidor { display: block; width: 100%; max-width: 250px; margin: -4px auto 0; overflow: visible; }
 .medidor-pista { fill: none; stroke: rgba(255, 255, 255, .07); stroke-width: 12; stroke-linecap: round; }
@@ -508,20 +509,13 @@ legend svg { width: 16px; height: 16px; color: var(--tinta-2); }
 .tablero-vivo[data-sin-datos="1"] .tv-medidores, .tablero-vivo[data-sin-datos="1"] .tv-medio, .tablero-vivo[data-sin-datos="1"] .tv-graficas { opacity: .55; }
 
 @media (max-width: 1320px) {
-  .tv-medidores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tv-principal { grid-template-columns: 1fr; }
   .tv-medio, .tv-graficas { grid-template-columns: 1fr; }
 }
 
-/* Animaciones reducidas: se eligen en el menú lateral (no depende de la configuración de Windows,
-   que en muchos equipos apaga las animaciones solo para ganar rendimiento) */
-.app[data-movimiento="reducido"] *, .app[data-movimiento="reducido"] *::before, .app[data-movimiento="reducido"] *::after {
-  animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important;
-}
-.interruptor { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; color: var(--en-tapete-2);
-  padding: 8px 10px; border-radius: var(--radio); font-size: .88rem; text-align: left; }
-.interruptor:hover { background: rgba(255, 255, 255, .05); color: var(--en-tapete); }
-.interruptor svg { width: 17px; height: 17px; flex: none; }
-.interruptor i { margin-left: auto; width: 30px; height: 17px; border-radius: 9px; background: var(--linea-fuerte); position: relative; transition: background .2s; }
-.interruptor i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--en-tapete-2); transition: transform .2s; }
-.interruptor[aria-checked="true"] i { background: var(--hoja); }
-.interruptor[aria-checked="true"] i::after { transform: translateX(13px); background: #fff; }
+
+/* columna compacta junto a la maqueta */
+.tv-principal .binario-texto { font-size: 1.7rem; white-space: nowrap; }
+.tv-principal .medida-valor span { font-size: 2.5rem; }
+.tv-principal .tendencia { margin-top: 2px; }
+.tv-principal .medidor { max-width: 210px; }

@@ -2,6 +2,12 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versiones según [SemVer](https://semver.org/lang/es/).
 
+## [3.4.0] - 2026-11-20
+
+### Cambiado
+- La maqueta interactiva y el tablero en tiempo real quedan en la misma pantalla (sección **Invernadero**): maqueta a la izquierda y medidores, aire y tanque a la derecha.
+- Sonidos y animaciones siempre activos; se quitan los interruptores del menú lateral.
+
 ## [3.3.0] - 2026-11-20
 
 ### Agregado

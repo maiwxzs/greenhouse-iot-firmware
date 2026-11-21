@@ -2,7 +2,6 @@
 // campana: parciales inarmónicos con caída exponencial + reverberación corta
 
 let ctx = null, salida = null, reverb = null;
-let activo = true;
 let ultimo = -Infinity;
 
 function iniciar() {
@@ -94,7 +93,7 @@ const SONIDOS = {
 };
 
 export function sonar(nombre) {
-  if (!activo || !SONIDOS[nombre]) return;
+  if (!SONIDOS[nombre]) return;
   if (!iniciar()) return;
   if (ctx.state === "suspended") ctx.resume();
   const ahora = performance.now();
@@ -103,7 +102,6 @@ export function sonar(nombre) {
   try { SONIDOS[nombre](); } catch { /* audio no disponible */ }
 }
 
-export function activarSonido(v) { activo = v; }
 
 // tipo de evento del registro -> sonido
 export function sonidoDeEvento(ev) {

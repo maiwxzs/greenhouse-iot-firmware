@@ -18,8 +18,7 @@ El instalador `Invernadero-IoT-<versión>-Windows.exe` está en la sección [Rel
 
 | Sección | Contenido |
 |---|---|
-| Tablero | Pantalla principal en tiempo real: estado y alarma, medidores de temperatura y humedad del suelo con mínimos, máximos y tendencia de 10 min, humedad del aire, tanque y agua usada, bomba, ventilador, alarma y LEDs con su tiempo en el estado actual, cupo de la bomba en la hora, réplica de la LCD, últimos eventos y gráficas de 30 min |
-| Maqueta | Maqueta interactiva animada con los datos, con la ficha de cada pieza |
+| Invernadero | Pantalla principal en tiempo real: estado y alarma, maqueta interactiva animada con la ficha de cada pieza, medidores de temperatura y humedad del suelo con mínimos, máximos y tendencia de 10 min, humedad del aire, tanque y agua usada, bomba, ventilador, alarma y LEDs con su tiempo en el estado actual, cupo de la bomba en la hora, réplica de la LCD, últimos eventos y gráficas de 30 min |
 | Historial | Hoy, 7 o 30 días: estadísticas, gráficas por minuto, resumen diario y exportación a CSV |
 | Eventos | Cambios de estado, riegos, ventilador, aire húmedo, alarmas, comandos y conexiones |
 | Ajustes | Umbrales de temperatura y suelo, y puesta en hora del reloj del invernadero |
@@ -48,7 +47,7 @@ La maqueta se dibuja en proyección oblicua con las medidas de [`docs/maqueta.md
 
 Las lecturas llegan cada 2 s, pero la escena no salta: temperatura, humedad y nivel se suavizan y los números del tablero se deslizan hasta su nuevo valor. El motor de animación (`escena/motor.js`) corre en un único `requestAnimationFrame`, usa conjuntos fijos de elementos SVG para las partículas y un paso fijo de 1/240 s para el agua, y modifica el SVG directamente sin volver a renderizar React. Toma alrededor de 1 ms por cuadro, así que la escena se mantiene a 60 cuadros por segundo con todo activo. [Video de 31 s a 60 fps](../docs/img/maqueta-app-60fps.mp4) grabado de la demostración: riego, calor, aire húmedo, tanque vacío y rellenado.
 
-Cada pieza se puede tocar. Su ficha dice qué es, cómo está conectada y qué está haciendo, y ofrece la acción que le corresponde: regar desde la bomba, silenciar desde el zumbador o rellenar el tanque en la demostración. Al tocar la caja, la tapa se levanta y las paredes se vuelven translúcidas para mostrar el Arduino, la protoboard y los dos relés, con el LED TX que destella en cada lectura y el LED de cada relé. Las animaciones se apagan con el interruptor **Animaciones** del menú lateral, y la elección se recuerda en el equipo. No dependen de la opción «Mostrar animaciones en Windows», que muchos equipos tienen desactivada solo para ganar rendimiento.
+Cada pieza se puede tocar. Su ficha dice qué es, cómo está conectada y qué está haciendo, y ofrece la acción que le corresponde: regar desde la bomba, silenciar desde el zumbador o rellenar el tanque en la demostración. Al tocar la caja, la tapa se levanta y las paredes se vuelven translúcidas para mostrar el Arduino, la protoboard y los dos relés, con el LED TX que destella en cada lectura y el LED de cada relé. Las animaciones están siempre activas y no dependen de la opción «Mostrar animaciones en Windows».
 
 ![Caja abierta con la electrónica visible](../docs/img/aplicacion-caja.png)
 
@@ -66,7 +65,7 @@ Cada pieza se puede tocar. Su ficha dice qué es, cómo está conectada y qué e
 | Vuelta a «Todo en orden» | Dos notas que resuelven |
 | Comando confirmado | Una campana aguda |
 
-El interruptor **Sonidos** del menú lateral los apaga; la elección se guarda en el equipo.
+Los sonidos están siempre activos.
 
 ## Arquitectura
 
@@ -94,7 +93,7 @@ app/
 │   │   ├── registro.js     Ventana en vivo, eventos, resumen por minuto y por día
 │   │   ├── almacen.js      IndexedDB: lecturas, minutos y eventos, con retención
 │   │   └── simulador.js    Arduino simulado con el mismo protocolo
-│   └── componentes/        Tablero, Inicio (maqueta), Historial, Eventos, Ajustes, Calibración, Consola, SelectorPuerto
+│   └── componentes/        Tablero (pantalla principal), Maqueta, Historial, Eventos, Ajustes, Calibración, Consola, SelectorPuerto
 ├── public/                 Íconos
 ├── recursos/icon.png       Ícono del instalador
 └── build.mjs               Construcción de la interfaz con esbuild

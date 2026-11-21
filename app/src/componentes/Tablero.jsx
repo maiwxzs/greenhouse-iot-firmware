@@ -4,6 +4,7 @@ import {
   LuBellOff, LuBellRing, LuDroplets, LuFan, LuGlassWater, LuPlay, LuPlugZap, LuThermometer, LuWaves, LuWind,
 } from "react-icons/lu";
 import { GraficaTiempo, TiraActuadores } from "./Grafica.jsx";
+import Maqueta from "./Maqueta.jsx";
 import Lcd, { textoLcd } from "../escena/Lcd.jsx";
 import { textoEstado } from "../lib/protocolo.js";
 import { duracion, useAhora, useSuave } from "../lib/tiempo.js";
@@ -98,7 +99,7 @@ function Actuador({ nombre, icono: Icono, activo, color, estado, detalle, childr
 const mayus = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const MOTIVO_ALARMA = { SIN_AGUA: "tanque vacío", TEMPERATURA_CRITICA: "temperatura crítica", FALLA_SENSOR_TEMP: "falla del DS18B20" };
 
-export default function Tablero({ t, cfg, vivo, eventos, modo, pagina, enviar, acciones, aguaHoy, soportaSerie, verEventos }) {
+export default function Tablero({ t, cfg, vivo, eventos, modo, pagina, enviar, acciones, aguaHoy, soportaSerie, verEventos, latido, envio, sel, setSel, foco, setFoco }) {
   useAhora(1000);
   const ahora = Date.now();
   const e = t ? textoEstado(t.estado) : { titulo: modo === "desconectado" ? "Sin conexión" : "Esperando lecturas", detalle: "", tono: "neutro" };
@@ -153,6 +154,9 @@ export default function Tablero({ t, cfg, vivo, eventos, modo, pagina, enviar, a
         </div>
       )}
 
+      <div className="tv-principal">
+      <Maqueta t={t} cfg={cfg} modo={modo} latido={latido} envio={envio} pagina={pagina}
+        sel={sel} setSel={setSel} foco={foco} setFoco={setFoco} enviar={enviar} acciones={acciones} />
       <div className="tv-medidores">
         <Panel titulo="Temperatura del aire" icono={LuThermometer} tono={t && t.temp_c >= tCrit ? "alarma" : undefined}>
           <div className="medida">
@@ -210,6 +214,7 @@ export default function Tablero({ t, cfg, vivo, eventos, modo, pagina, enviar, a
           </div>
           {modo === "demo" && <button type="button" className="boton chico sec" onClick={acciones.rellenar}><LuGlassWater /> Rellenar</button>}
         </Panel>
+      </div>
       </div>
 
       <div className="tv-medio">

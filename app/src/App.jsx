@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  LuCalendarDays, LuGauge, LuFastForward, LuFlaskConical, LuGlassWater, LuHouse, LuInfo, LuListChecks,
-  LuPlay, LuPlugZap, LuSlidersHorizontal, LuSparkles, LuSquare, LuTerminal, LuUnplug, LuVolume2,
+  LuCalendarDays, LuGauge, LuFastForward, LuFlaskConical, LuGlassWater, LuInfo, LuListChecks,
+  LuPlay, LuPlugZap, LuSlidersHorizontal, LuSquare, LuTerminal, LuUnplug,
 } from "react-icons/lu";
-import Inicio from "./componentes/Inicio.jsx";
 import Tablero from "./componentes/Tablero.jsx";
 import Historial from "./componentes/Historial.jsx";
 import Eventos from "./componentes/Eventos.jsx";
@@ -16,12 +15,12 @@ import { Almacen, RETENCION_LECTURAS_DIAS, RETENCION_MINUTOS_DIAS } from "./lib/
 import { Registro, SEGUNDOS_POR_MUESTRA } from "./lib/registro.js";
 import { CAUDAL_L_POR_S, comandoHoraActual, interpretarLinea, textoConfirmacion } from "./lib/protocolo.js";
 import { generarHistorialDemo } from "./lib/simulador.js";
-import { activarSonido, sonar, sonidoDeEvento } from "./lib/sonido.js";
+import { sonar, sonidoDeEvento } from "./lib/sonido.js";
 
 const PRIORIDAD_SONIDO = ["alarma", "silencio", "riego", "normal", "ventilador", "conectado", "desconectado"];
 
 const VISTAS = [
-  ["tablero", "Tablero", LuGauge], ["inicio", "Maqueta", LuHouse], ["historial", "Historial", LuCalendarDays],
+  ["tablero", "Invernadero", LuGauge], ["historial", "Historial", LuCalendarDays],
   ["eventos", "Eventos", LuListChecks], ["ajustes", "Ajustes", LuSlidersHorizontal], ["calibracion", "Calibración", LuFlaskConical],
   ["consola", "Consola", LuTerminal],
 ];
@@ -44,17 +43,6 @@ let idLinea = 0;
 
 export default function App() {
   const [vista, setVista] = useState("tablero");
-  // preferencia guardada en localStorage
-  const [animar, setAnimar] = useState(() => { try { return localStorage.getItem("invernadero.animaciones") !== "no"; } catch { return true; } });
-  const [sonidos, setSonidos] = useState(() => { try { return localStorage.getItem("invernadero.sonidos") !== "no"; } catch { return true; } });
-  const cambiarSonidos = () => setSonidos((a) => {
-    try { localStorage.setItem("invernadero.sonidos", a ? "no" : "si"); } catch { /* sin almacenamiento */ }
-    activarSonido(!a);
-    if (!a) sonar("conectado");
-    return !a;
-  });
-  useEffect(() => { activarSonido(sonidos); }, [sonidos]);
-  const cambiarAnimar = () => setAnimar((a) => { try { localStorage.setItem("invernadero.animaciones", a ? "no" : "si"); } catch { /* sin almacenamiento */ } return !a; });
   const [cfg, setCfg] = useState(null);
   const [ultima, setUltima] = useState(null);
   const [vivo, setVivo] = useState([]);
@@ -208,7 +196,7 @@ export default function App() {
   const acciones = { conectar: conectarUsb, demo: iniciarDemo, rellenar: conexion.rellenarDemo };
 
   return (
-    <div className="app" data-alarma={+(t?.alarma === 1)} data-movimiento={animar ? "completo" : "reducido"}>
+    <div className="app" data-alarma={+(t?.alarma === 1)}>
       <nav className="riel" aria-label="Secciones">
         <div className="marca">
           <Logo />
@@ -226,12 +214,6 @@ export default function App() {
             </li>
           ))}
         </ul>
-        <button type="button" className="interruptor" role="switch" aria-checked={sonidos} onClick={cambiarSonidos}>
-          <LuVolume2 /> Sonidos <i aria-hidden="true" />
-        </button>
-        <button type="button" className="interruptor" role="switch" aria-checked={animar} onClick={cambiarAnimar}>
-          <LuSparkles /> Animaciones <i aria-hidden="true" />
-        </button>
         <div className="conexion" data-modo={modo}>
           <p className="conexion-estado" role="status"><i />{{ desconectado: "Sin conexión", usb: "Arduino por USB", demo: "Demostración" }[modo]}</p>
           {modo === "desconectado" && (
@@ -272,11 +254,8 @@ export default function App() {
 
         {vista === "tablero" ? (
           <Tablero t={t} cfg={cfg} vivo={vivo} eventos={eventos} modo={modo} pagina={pagina} enviar={enviar} acciones={acciones}
-            aguaHoy={aguaHoy} soportaSerie={soportaSerie} verEventos={() => setVista("eventos")} />
-        ) : vista === "inicio" ? (
-          <Inicio reducir={!animar} eventos={eventos} verEventos={() => setVista("eventos")} t={t} cfg={cfg} vivo={vivo} modo={modo} latido={latido} envio={envio} pagina={pagina}
-            sel={sel} setSel={setSel} foco={foco} setFoco={setFoco} enviar={enviar} acciones={acciones}
-            aireDesde={aireDesde.current} aguaHoy={aguaHoy} soportaSerie={soportaSerie} />
+            aguaHoy={aguaHoy} soportaSerie={soportaSerie} verEventos={() => setVista("eventos")}
+            latido={latido} envio={envio} sel={sel} setSel={setSel} foco={foco} setFoco={setFoco} />
         ) : (
           <section className="hoja" key={vista}>
             <h1>{VISTAS.find((v) => v[0] === vista)[1]}</h1>

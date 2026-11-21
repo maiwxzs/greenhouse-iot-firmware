@@ -65,27 +65,25 @@ Funciona en Windows 10 y 11 de 64 bits y no necesita internet. Si el Arduino es 
 
 ### Tablero
 
-La aplicación abre en el **Tablero**, pensado para dejarlo a la vista mientras el sistema trabaja. Arriba muestra el estado del invernadero, la hora, cuánto hace que llegó la última lectura y la conexión; si suena una alarma aparece una franja roja con su motivo y el botón para silenciarla. Debajo están los medidores de temperatura y humedad del suelo, con sus zonas (ventilar, alarma, riego), los mínimos y máximos de los últimos 30 minutos y la tendencia de los últimos 10, la humedad del aire y el tanque. La fila de actuadores dice si la bomba, el ventilador y la alarma están activos, por qué y desde hace cuánto, cuántos pulsos de riego van en el día y cuánto del cupo de 900 s por hora lleva la bomba. Al final están la réplica de la pantalla LCD, los últimos eventos y las gráficas de los últimos 30 minutos.
+La aplicación abre en la sección **Invernadero**, pensada para dejarlo a la vista mientras el sistema trabaja. Arriba muestra el estado del invernadero, la hora, cuánto hace que llegó la última lectura y la conexión; si suena una alarma aparece una franja roja con su motivo y el botón para silenciarla. Debajo, a la izquierda, está la maqueta animada, y a su lado los medidores de temperatura y humedad del suelo, con sus zonas (ventilar, alarma, riego), los mínimos y máximos de los últimos 30 minutos y la tendencia de los últimos 10, la humedad del aire y el tanque. La fila de actuadores dice si la bomba, el ventilador y la alarma están activos, por qué y desde hace cuánto, cuántos pulsos de riego van en el día y cuánto del cupo de 900 s por hora lleva la bomba. Al final están la réplica de la pantalla LCD, los últimos eventos y las gráficas de los últimos 30 minutos.
 
-![Tablero](img/aplicacion.png)
+![Pantalla principal](img/aplicacion.png)
 
 ### La maqueta
 
-La sección **Maqueta** muestra la maqueta tal como está construida, animada con las lecturas: gira el ventilador, corre el agua, cambian la tierra y las hojas, baja el tanque, aparece rocío con el aire húmedo y el zumbador emite ondas con la alarma. Cada lectura que llega viaja como un punto amarillo por el cable USB; cada comando, como un punto celeste en sentido contrario.
+La maqueta de la pantalla principal es la misma que está construida, animada con las lecturas: gira el ventilador, corre el agua, cambian la tierra y las hojas, baja el tanque, aparece rocío con el aire húmedo y el zumbador emite ondas con la alarma. Cada lectura que llega viaja como un punto amarillo por el cable USB; cada comando, como un punto celeste en sentido contrario.
 
-La aplicación también avisa con sonidos al conectarse, al regar, al encender el ventilador, con las alarmas y al volver a la normalidad; el interruptor **Sonidos** del menú lateral los apaga. Las animaciones están activadas por defecto; el interruptor **Animaciones** del menú lateral las apaga si el equipo es muy lento o si prefieres una vista quieta.
+La aplicación también avisa con sonidos al conectarse, al regar, al encender el ventilador, con las alarmas y al volver a la normalidad; los sonidos y las animaciones están siempre activos.
 
 Al tocar una pieza aparece su ficha: qué es, cómo está conectada, qué está haciendo y, cuando corresponde, un botón para actuar (regar, silenciar la alarma o rellenar el tanque en la demostración). Al tocar la caja se levanta la tapa y se ve el interior, con los LEDs de los relés y el LED TX del Arduino.
 
 ![Caja abierta en la aplicación](img/aplicacion-caja.png)
 
-A la derecha, el tablero muestra el estado, las cuatro lecturas con su traza de los últimos 30 minutos y una réplica de la pantalla LCD de la caja. Debajo de la maqueta, la bitácora muestra lo último que pasó.
-
 ### Secciones
 
 | Sección | Contenido |
 |---|---|
-| Tablero | Pantalla principal en tiempo real: estado y alarma, medidores de temperatura y humedad del suelo con mínimos, máximos y tendencia de 10 min, humedad del aire, tanque y agua usada, bomba, ventilador, alarma y LEDs con su tiempo en el estado actual, cupo de la bomba en la hora, réplica de la LCD, últimos eventos y gráficas de 30 min |
+| Invernadero | Pantalla principal en tiempo real: estado y alarma, maqueta interactiva con la ficha de cada pieza, medidores de temperatura y humedad del suelo con mínimos, máximos y tendencia de 10 min, humedad del aire, tanque y agua usada, bomba, ventilador, alarma y LEDs con su tiempo en el estado actual, cupo de la bomba en la hora, réplica de la LCD, últimos eventos y gráficas de 30 min |
 | Maqueta | Maqueta interactiva, lecturas, pantalla LCD, acciones y bitácora |
 | Historial | Hoy, 7 días o 30 días: estadísticas, gráficas por minuto y resumen diario. Exportación a CSV |
 | Eventos | Cambios de estado, riegos, ventilador, aire húmedo, alarmas, comandos y conexiones |
